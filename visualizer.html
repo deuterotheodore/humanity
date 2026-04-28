@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prisoner's Dilemma Strategy Visualizer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace;
+      background: linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      min-height: 100vh;
+      color: #e2e8f0;
+    }
+    
+    .container {
+      padding: 24px;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #334155;
+    }
+    
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #60a5fa, #4ade80);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    
+    .subtitle {
+      color: #94a3b8;
+      font-size: 0.875rem;
+    }
+    
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(500px, 700px) 1fr;
+      gap: 32px;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+    
+    @media (max-width: 1100px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .matrix-section {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    
+    .matrix-section h2 {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #f1f5f9;
+    }
+    
+    .matrices-grid {
+      display: grid;
+      grid-template-columns: auto auto auto auto;
+      gap: 12px;
+      margin-bottom: 20px;
+      justify-content: start;
+    }
+    
+    @media (max-width: 700px) {
+      .matrices-grid {
+        grid-template-columns: auto auto;
+      }
+    }
+    
+    @media (max-width: 450px) {
+      .matrices-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .matrix-panel {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    
+    .matrix-panel h3 {
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+    }
+    
+    .matrix-panel .matrix-hint {
+      font-size: 0.65rem;
+      margin-bottom: 8px;
+    }
+    
+    .matrix-full {
+      margin-top: 4px;
+    }
+    
+    .matrix-small {
+      font-size: 0.8rem;
+    }
+    
+    .matrix-small th, .matrix-small td {
+      padding: 8px 12px;
+      min-width: 40px;
+    }
+    
+    .first-move-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-width: 120px;
+    }
+    
+    .first-move-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    
+    .first-move-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      padding: 16px 24px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+    }
+    
+    .decay-panel {
+      min-width: 160px;
+    }
+    
+    .decay-info {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    
+    .decay-rate {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .decay-rate .label {
+      font-size: 0.7rem;
+      color: #94a3b8;
+    }
+    
+    .decay-rate .value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #60a5fa;
+    }
+    
+    .weights-display .label {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 6px;
+    }
+    
+    .weight-bars {
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      height: 60px;
+      padding-top: 10px;
+    }
+    
+    .weight-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .weight-bar {
+      width: 16px;
+      border-radius: 2px 2px 0 0;
+      min-height: 2px;
+    }
+    
+    .weight-label {
+      font-size: 0.6rem;
+      color: #64748b;
+    }
+    
+    .weight-value {
+      font-size: 0.6rem;
+      color: #94a3b8;
+    }
+
+    .matrix-hint {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+    
+    .table-wrapper {
+      overflow-x: auto;
+    }
+    
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.8rem;
+    }
+    
+    th, td {
+      padding: 10px 8px;
+      text-align: center;
+      border: 1px solid #334155;
+      min-width: 48px;
+    }
+    
+    thead th {
+      background: #1e293b;
+      color: #94a3b8;
+      font-weight: 500;
+      position: sticky;
+      top: 0;
+    }
+    
+    tbody th {
+      background: #1e293b;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    
+    td {
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    
+    .legend {
+      display: flex;
+      gap: 20px;
+      margin-top: 16px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      justify-content: center;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid #475569;
+      display: inline-block;
+    }
+    
+    .controls-section {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .presets {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    
+    .presets h3 {
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 12px;
+      color: #f1f5f9;
+    }
+    
+    .preset-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .preset-buttons button {
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 8px 14px;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #e2e8f0;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    
+    .preset-buttons button:hover {
+      background: #334155;
+      border-color: #60a5fa;
+      color: #fff;
+    }
+    
+    .control-group {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    
+    .control-group h3 {
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 14px;
+      color: #f1f5f9;
+    }
+    
+    .slider-row {
+      display: grid;
+      grid-template-columns: 140px 1fr 50px;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    
+    .slider-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .slider-row label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+    
+    .slider-row .value {
+      font-size: 0.75rem;
+      color: #60a5fa;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      outline: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--slider-color, #4ade80);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      transition: transform 0.1s ease;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--slider-color, #4ade80);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    
+    footer {
+      max-width: 1500px;
+      margin: 32px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid #334155;
+    }
+    
+    footer p {
+      font-size: 0.75rem;
+      color: #64748b;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+    
+    footer p:last-child {
+      margin-bottom: 0;
+    }
+    
+    footer strong {
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    // Sigmoid function: maps score to probability [0, 1]
+    function sigmoid(score) {
+      return 1 / (1 + Math.exp(-score));
+    }
+    
+    // Clamp utility
+    function clamp(val, min, max) {
+      return Math.min(max, Math.max(min, val));
+    }
+
+    // Contextual valence: evaluate action given what preceded it
+    // priorContext can be discrete (-1, 0, +1) or continuous [-1, +1]
+    // Returns valence in roughly [-1.5, +1.5]
+    function contextualValence(action, priorContext) {
+      if (action === 0) return 0.0;
+      
+      // No prior context: moderate valence
+      if (priorContext === 0) {
+        return action === 1 ? 0.5 : -0.8;
+      }
+      
+      // For continuous priorContext, interpolate between extremes
+      // priorContext in [-1, 1]: -1 = defection, +1 = cooperation
+      // Map to interpolation factor t in [0, 1] where 0 = defection context, 1 = coop context
+      const t = (priorContext + 1) / 2;
+      
+      if (action === 1) { // Cooperation
+        // Interpolate between forgiveness (1.5) and mutual coop (1.0)
+        return 1.5 * (1 - t) + 1.0 * t;
+      } else { // Defection (action === -1)
+        // Interpolate between retaliation (-0.3) and betrayal (-1.5)
+        return -0.3 * (1 - t) + -1.5 * t;
+      }
+    }
+    
+    // Geometric series sum: decay^start + decay^(start+1) + ... + decay^(start+count-1)
+    function geometricSeriesSum(decay, start, count) {
+      if (count <= 0) return 0;
+      if (Math.abs(decay - 1) < 1e-9) return count;
+      return Math.pow(decay, start) * (1 - Math.pow(decay, count)) / (1 - decay);
+    }
+    
+    // Compute weights with proper geometric series for pre-history
+    function computeWeights(decayRate, recentDepth, nPre) {
+      // Recent weights
+      const recentRaw = [];
+      for (let i = 0; i < recentDepth; i++) {
+        recentRaw.push(Math.pow(decayRate, i));
+      }
+      
+      // Pre-history weight: sum from decay^recentDepth to decay^(recentDepth+nPre-1)
+      const preRaw = nPre > 0 ? geometricSeriesSum(decayRate, recentDepth, nPre) : 0;
+      
+      // Normalize
+      const total = recentRaw.reduce((a, b) => a + b, 0) + preRaw;
+      if (total < 1e-9) {
+        return { recent: recentRaw.map(() => 1 / recentDepth), pre: 0 };
+      }
+      
+      return {
+        recent: recentRaw.map(w => w / total),
+        pre: preRaw / total
+      };
+    }
+    
+    // Evaluate opponent actions with N-based negativity bias
+    // N is centered at 0.5: N=0 dampens negative/amplifies positive, N=1 does opposite
+    function evaluateOpponentActions(opp, own, oppAvg, ownAvg, N, recentDepth, nPre) {
+      // Pre-history active when nPre > 0 (avgs are in [-1,1], not sentinels)
+      const hasPreHistory = nPre > 0;
+      const nEffect = N - 0.5;  // range [-0.5, 0.5]
+      
+      // Apply N-based asymmetry to valence
+      function applyNeuroticismBias(valence) {
+        if (valence < 0) {
+          return valence * (1 + 1.2 * nEffect);
+        } else {
+          return valence * (1 - 0.8 * nEffect);
+        }
+      }
+      
+      const recentValences = [];
+      
+      for (let i = 0; i < recentDepth; i++) {
+        const oppAction = opp[i];
+        if (oppAction === 0) {
+          recentValences.push(0);
+          continue;
+        }
+        
+        // What did I do before this opponent action?
+        let priorContext = 0;
+        if (i + 1 < own.length && own[i + 1] !== 0) {
+          priorContext = own[i + 1];
+        } else if (hasPreHistory) {
+          // ownAvg is already in [-1, 1]
+          priorContext = ownAvg;
+        }
+        
+        let valence = contextualValence(oppAction, priorContext);
+        valence = applyNeuroticismBias(valence);
+        
+        recentValences.push(valence);
+      }
+      
+      // Pre-history valence: continuous expected value based on averages
+      let preValence = null;
+      if (hasPreHistory) {
+        // Averages are in [-1, 1], map to probabilities for expected value calc
+        // avg = -1 → p=0 (always defect), avg = +1 → p=1 (always coop)
+        const pOppCoop = (oppAvg + 1) / 2;
+        const pOwnCoop = (ownAvg + 1) / 2;
+        
+        const pCC = pOppCoop * pOwnCoop;
+        const pCD = pOppCoop * (1 - pOwnCoop);
+        const pDC = (1 - pOppCoop) * pOwnCoop;
+        const pDD = (1 - pOppCoop) * (1 - pOwnCoop);
+        
+        const vCC = 1.0;
+        const vCD = 1.5;
+        const vDC = -1.5;
+        const vDD = -0.3;
+        
+        let valence = pCC * vCC + pCD * vCD + pDC * vDC + pDD * vDD;
+        valence = applyNeuroticismBias(valence);
+        
+        preValence = valence;
+      }
+      
+      return { recent: recentValences, pre: preValence };
+    }
+    
+    // Conscientiousness-based principled adjustment
+    // C = justice/fairness: high C reacts strongly to fairness violations
+    // Forgiveness = A * (1-C): agreeable + unprincipled = forgiving
+    function computePrincipledAdjustment(C, A, own, opp, ownAvg, oppAvg, weights, recentDepth, nPre) {
+      let adjustment = 0;
+      const hasPreHistory = nPre > 0;
+      const forgivenessTendency = A * (1 - C);  // high A + low C = forgiving
+      
+      // Evaluate own action given opponent's prior action
+      // priorOpp can be discrete (-1, +1) or continuous [-1, +1]
+      function evaluateOwnAction(ownAction, priorOpp) {
+        if (priorOpp === null) return 0;
+        
+        // t = 0 means opponent defected, t = 1 means opponent cooperated
+        const t = (priorOpp + 1) / 2;
+        
+        if (ownAction < 0) { // I defected
+          // Interpolate: justified retaliation (priorOpp=-1) vs unprovoked defection (priorOpp=+1)
+          const vRetaliation = 0.6 * C;     // justified by justice
+          const vUnprovoked = -2.5 * C;     // penalized by justice
+          return vRetaliation * (1 - t) + vUnprovoked * t;
+        } else { // I cooperated
+          // After opponent defected: forgiveness (driven by A*(1-C), not C)
+          // After opponent cooperated: neutral/positive
+          const vAfterDefect = forgivenessTendency * 1.2 - C * 0.3;  // forgiveness vs weakness
+          const vAfterCoop = 0.1;  // slight positive for mutual cooperation maintenance
+          return vAfterDefect * (1 - t) + vAfterCoop * t;
+        }
+      }
+      
+      // Recent history
+      for (let i = 0; i < recentDepth; i++) {
+        const ownAction = own[i];
+        if (ownAction === 0) continue;
+        
+        let priorOpp = null;
+        if (i + 1 < opp.length && opp[i + 1] !== 0) {
+          priorOpp = opp[i + 1];
+        } else if (hasPreHistory) {
+          // oppAvg is already in [-1, 1]
+          priorOpp = oppAvg;
+        }
+        
+        adjustment += weights.recent[i] * evaluateOwnAction(ownAction, priorOpp);
+      }
+      
+      // Pre-history: continuous expected value based on averages
+      if (hasPreHistory && weights.pre > 0) {
+        // Map avgs from [-1,1] to probabilities [0,1]
+        const pOwnCoop = (ownAvg + 1) / 2;
+        const pOppCoop = (oppAvg + 1) / 2;
+        
+        const pCD = pOwnCoop * (1 - pOppCoop);       // I coop after opp defect
+        const pDD = (1 - pOwnCoop) * (1 - pOppCoop); // I defect after opp defect
+        const pDC = (1 - pOwnCoop) * pOppCoop;       // I defect after opp coop
+        const pCC = pOwnCoop * pOppCoop;             // I coop after opp coop
+        
+        const vCD = forgivenessTendency * 1.2 - C * 0.3;  // forgiveness vs weakness
+        const vDD = 0.6 * C;   // justified retaliation
+        const vDC = -2.5 * C;  // unprovoked defection
+        const vCC = 0.1;       // mutual cooperation maintenance
+        
+        const expectedAdj = pCD * vCD + pDD * vDD + pDC * vDC + pCC * vCC;
+        adjustment += weights.pre * expectedAdj;
+      }
+      
+      return adjustment;
+    }
+    
+    // Apply extraversion as transparency multiplier (transparent behavior is amplified by E)
+    function applyTransparency(score, E) {
+      const multiplier = 0.5 + 0.8 * E;  // range: [0.5, 1.3]
+      return score * multiplier;
+    }
+    
+    // Deviousness term: low E × low C enables strategic exploitation of trust
+    // High deviousness:
+    //   - Depress cooperation after mutual cooperation (exploit established trust)
+    //   - Boost cooperation after mutual defection (reset for future exploitation)
+    //   - Depress cooperation when successfully exploiting (own D, opp C) - "sucker" pattern
+    // NOTE: Deviousness only considers RECENT history, not pre-history.
+    function computeDeviousnessTerm(E, C, own, opp, weights, recentDepth) {
+      const deviousness = (1 - E) * (1 - C);
+      if (deviousness < 0.05) return 0;
+      
+      let mutualCoopWeight = 0;
+      let mutualDefectWeight = 0;
+      let suckerExploitWeight = 0;  // I defected, they cooperated
+      
+      // Only consider recent history for deviousness
+      for (let i = 0; i < recentDepth; i++) {
+        if (own[i] === 1 && opp[i] === 1) {
+          mutualCoopWeight += weights.recent[i];
+        } else if (own[i] === -1 && opp[i] === -1) {
+          mutualDefectWeight += weights.recent[i];
+        } else if (own[i] === -1 && opp[i] === 1) {
+          suckerExploitWeight += weights.recent[i];
+        }
+      }
+      
+      // Normalize to recent-only weights
+      const recentTotal = weights.recent.reduce((a, b) => a + b, 0);
+      if (recentTotal > 0) {
+        mutualCoopWeight /= recentTotal;
+        mutualDefectWeight /= recentTotal;
+        suckerExploitWeight /= recentTotal;
+      }
+      
+      // Exploit accumulated trust (mild superlinearity)
+      const exploitTrustEffect = -mutualCoopWeight * (1 + 0.3 * mutualCoopWeight);
+      
+      // Reset/reconciliation after mutual defection
+      const resetEffect = mutualDefectWeight * 0.4;
+      
+      // Continue exploiting suckers - why stop when it's working?
+      const suckerEffect = -suckerExploitWeight * 1.2;
+      
+      return deviousness * (exploitTrustEffect + resetEffect + suckerEffect) * 3.5;
+    }
+
+    // Identity modifier: kin altruism and xenophobia effects
+    // kinAltruism, xenophobia: 0.5 = neutral, >0.5 = ingroup preference, <0.5 = outgroup preference
+    // Outgroup preference (values < 0.5) has weaker slope as it's "unnatural"
+    // geneticDistance, culturalDistance: squared Euclidean distance, range [0, 75], capped
+    function identityModifier(genetics, context) {
+      const { kinAltruism, xenophobia, openness } = genetics;
+      const { relatedness, geneticDistance, culturalDistance } = context;
+      
+      let modifier = 0;
+      
+      // === KIN ALTRUISM ===
+      // Reacts to relatedness (inbreeding coefficient, typically 0-0.5)
+      const kinEffect = kinAltruism - 0.5;  // range [-0.5, 0.5]
+      if (kinEffect >= 0) {
+        // Ingroup preference: higher relatedness -> more cooperation
+        modifier += kinEffect * 2 * relatedness * 3.0;
+      } else {
+        // Outgroup preference: higher relatedness -> less cooperation (weaker slope)
+        modifier += kinEffect * 2 * relatedness * 1.5;
+      }
+      
+      // === XENOPHOBIA ===
+      // Reacts to genetic distance (squared, capped at 75)
+      const cappedGenDist = Math.min(geneticDistance, 75);
+      const xenoEffect = xenophobia - 0.2;  // range [-0.2, 0.8]
+      const opennessMod = 1 - 0.3 * openness;  // O slightly reduces xenophobic effect
+      if (xenoEffect >= 0) {
+        // Ingroup preference: higher genetic distance -> less cooperation
+        // Max effect: 0.5 * 2 * 1 * 75 / 25 = 3.0
+        modifier -= xenoEffect * 4 * opennessMod * cappedGenDist / 25;
+      } else {
+        // Outgroup preference: higher genetic distance -> more cooperation (weaker slope)
+        modifier -= xenoEffect * 4 * cappedGenDist / 50;
+      }
+      
+      // === CULTURAL DISTANCE ===
+      // Cultural preference is average of kin altruism and xenophobia
+      // (cultural tribalism blends clannishness and ethnic preference)
+      if (culturalDistance >= 0) {
+        const cappedCultDist = Math.min(culturalDistance, 75);
+        const culturalPref = (kinAltruism + xenophobia) / 2;
+        const cultEffect = culturalPref - 0.2;  // range [-0.2, 0.8]
+        const cultOpennessMod = 1 - 0.3 * openness;  // O reduces cultural penalty
+        
+        if (cultEffect >= 0) {
+          // Ingroup preference: higher cultural distance -> less cooperation
+          modifier -= cultEffect * 4 * cultOpennessMod * cappedCultDist / 25;
+        } else {
+          // Outgroup preference (weaker slope)
+          modifier -= cultEffect * 4 * cappedCultDist / 50;
+        }
+      }
+      
+      return modifier;
+    }
+    
+    // Demographic modifier: age-tier based effects
+    // Tiers: children (7-14), juveniles (14-21), adults (21-65), elderly (>65)
+    // Effects scaled by C (except F-F penalty scaled by N)
+    // Note: Effects are on pre-sigmoid score; near 50% prob, slope ~0.25, so ±1.0 score ≈ ±25% prob
+    function computeDemographicModifier(ownSex, oppSex, ownAge, oppAge, genetics) {
+      const { conscientiousness: C, neuroticism: N } = genetics;
+      let modifier = 0;
+      
+      // Age tier classification
+      const getTier = (age) => {
+        if (age < 14) return 'child';
+        if (age < 21) return 'juvenile';
+        if (age <= 65) return 'adult';
+        return 'elderly';
+      };
+      
+      const ownTier = getTier(ownAge);
+      const oppTier = getTier(oppAge);
+      const sameSex = ownSex === oppSex;
+      const cScale = 0.5 + C;  // range [0.5, 1.5] - scales but doesn't negate
+      
+      // === CHILDREN (7-14) ===
+      if (ownTier === 'child') {
+        // No sex modifiers for children
+        // Cooperation boost for older opponents (capped at 10 years diff)
+        const ageDiff = Math.min(oppAge - ownAge, 10);
+        if (ageDiff > 0) {
+          modifier += (ageDiff / 10) * 1.2 * cScale;  // max +1.2 to +1.8
+        }
+      }
+      
+      // === JUVENILES (14-21) ===
+      else if (ownTier === 'juvenile') {
+        // Boost for opposite sex juveniles
+        if (oppTier === 'juvenile' && !sameSex) {
+          modifier += 2.0 * cScale;  // +1.0 to +3.0
+        }
+        // Rebelliousness toward adults/elderly fades with age, C shifts from penalty to respect
+        // Age 14: baseline -0.80, Age 21: baseline 0
+        // C=0 adds -0.80, C=1 adds +0.80
+        if (oppTier === 'adult' || oppTier === 'elderly') {
+          const ageProgress = (ownAge - 14) / 7;  // 0 at 14, 1 at 21
+          const baseline = -0.80 * (1 - ageProgress);  // fades from -0.80 to 0
+          const cMod = (C - 0.5) * 1.6;  // -0.80 at C=0, +0.80 at C=1
+          modifier += baseline + cMod;
+        }
+      }
+      
+      // === ADULTS (21-65) ===
+      else if (ownTier === 'adult') {
+        // Boost for elderly and children
+        if (oppTier === 'elderly' || oppTier === 'child') {
+          modifier += 1.0 * cScale;  // +0.5 to +1.5
+        }
+        // Boost for adult males playing against adult females
+        if (ownSex === 'm' && oppSex === 'f' && oppTier === 'adult') {
+          modifier += 0.8 * cScale;  // +0.4 to +1.2
+        }
+        // Reduction for adult females playing adult females (scaled by N)
+        if (ownSex === 'f' && oppSex === 'f' && oppTier === 'adult') {
+          const nScale = 0.5 + N;  // range [0.5, 1.5]
+          modifier -= 1.0 * nScale;  // -0.5 to -1.5
+        }
+      }
+      
+      // === ELDERLY (>65) ===
+      // No specific modifiers for elderly actors (they're generally more agreeable via A)
+      
+      return modifier;
+    }
+    
+    // Global state modifier: happiness only (world trust reserved for future use)
+    // Slight linear impact centered at 0.5
+    function computeStateModifier(hap) {
+      const hapDev = hap - 0.5;  // range: [-0.5, 0.5]
+      return hapDev * 0.8;       // slight effect: ±0.4 at extremes
+    }
+    
+    // ============================================
+    // MAIN DECISION FUNCTION
+    // ============================================
+    
+    function computeCoopProbability(genetics, state, context, demographics, own, opp, ownAvg, oppAvg, nPre) {
+      const { openness: O, conscientiousness: C, extraversion: E, 
+              agreeableness: A, neuroticism: N } = genetics;
+      
+      // Pre-compute identity modifier
+      const idMod = identityModifier(genetics, context);
+      
+      // Pre-compute state modifier
+      const stateMod = computeStateModifier(state.happiness);
+      
+      // Pre-compute demographic modifier
+      const demoMod = computeDemographicModifier(
+        demographics.ownSex, demographics.oppSex,
+        demographics.ownAge, demographics.oppAge,
+        genetics
+      );
+      
+      // ============================================
+      // FIRST MOVE (no history)
+      // ============================================
+      if (own[0] === 0) {
+        // Base: A drives initial cooperation
+        let firstMoveScore = 8.0 * A * A - 2.0;
+        
+        // C gives principled baseline (linear, mild)
+        firstMoveScore += 1.5 * C;
+        
+        // High C (above 0.5) gives additional "principled cooperator" boost
+        // This represents: highly conscientious people start with good faith
+        // Superlinear: really takes off as C approaches 1
+        // At C=0.5: 0, at C=0.75: +1.5, at C=1: +6
+        const cAboveHalf = Math.max(0, C - 0.5);
+        firstMoveScore += 6 * cAboveHalf * cAboveHalf * 4;
+        
+        firstMoveScore = applyTransparency(firstMoveScore, E);
+        firstMoveScore += idMod + stateMod + demoMod;
+        
+        return sigmoid(firstMoveScore) * 100;
+      }
+      
+      // ============================================
+      // DETERMINE ACTUAL HISTORY DEPTH
+      // ============================================
+      let recentDepth = 1;
+      if (own[1] !== 0) recentDepth = 2;
+      if (own[1] !== 0 && own[2] !== 0) recentDepth = 3;
+      
+      // Pre-history is active when nPre > 0 (only meaningful with full 3-turn history)
+      const hasPreHistory = recentDepth === 3 && nPre > 0;
+      const effectiveNPre = hasPreHistory ? nPre : 0;
+      
+      // ============================================
+      // TIME DECAY WEIGHTS (proper geometric series)
+      // ============================================
+      let decayRate = 0.4 + 0.8 * C - 0.5 * N;
+      decayRate = clamp(decayRate, 0.1, 1.1);
+      
+      const weights = computeWeights(decayRate, recentDepth, effectiveNPre);
+      
+      // ============================================
+      // OPPONENT ACTION EVALUATION (with N-asymmetry)
+      // ============================================
+      const oppValences = evaluateOpponentActions(opp, own, oppAvg, ownAvg, N, recentDepth, effectiveNPre);
+      
+      // ============================================
+      // RECIPROCITY TERM
+      // ============================================
+      const reciprocityStrength = 4.0;
+      let oppTerm = 0;
+      for (let i = 0; i < recentDepth; i++) {
+        oppTerm += weights.recent[i] * oppValences.recent[i];
+      }
+      if (oppValences.pre !== null && weights.pre > 0) {
+        oppTerm += weights.pre * oppValences.pre;
+      }
+      oppTerm *= reciprocityStrength;
+      
+      // ============================================
+      // CONSCIENTIOUSNESS TERM (principled behavior)
+      // ============================================
+      const principledTerm = computePrincipledAdjustment(C, A, own, opp, ownAvg, oppAvg, weights, recentDepth, effectiveNPre);
+      
+      // ============================================
+      // AGREEABLENESS BASELINE
+      // ============================================
+      const baseline = 4.0 * A - 1.5;
+      
+      // ============================================
+      // DEVIOUSNESS TERM (low E × low C)
+      // ============================================
+      const deviousTerm = computeDeviousnessTerm(E, C, own, opp, weights, recentDepth);
+      
+      // ============================================
+      // COMBINE SCORE
+      // ============================================
+      // "Transparent" behavior (reciprocity, principles, baseline) modulated by E
+      let transparentScore = baseline + oppTerm + principledTerm;
+      transparentScore = applyTransparency(transparentScore, E);
+      
+      // Devious term added separately (not dampened by low E - that's the point)
+      let score = transparentScore + deviousTerm;
+      score += idMod + stateMod + demoMod;
+      
+      return sigmoid(score) * 100;
+    }
+
+    // History patterns for different depths
+    const PATTERNS_3 = ['CCC', 'CCD', 'CDC', 'CDD', 'DCC', 'DCD', 'DDC', 'DDD'];
+    const PATTERNS_2 = ['CC', 'CD', 'DC', 'DD'];
+    const PATTERNS_1 = ['C', 'D'];
+
+    function patternToArray(pattern, depth = 3) {
+      const arr = pattern.split('').map(c => c === 'C' ? 1 : -1);
+      while (arr.length < depth) {
+        arr.push(0);
+      }
+      return arr;
+    }
+    
+    // Compute for no history case
+    function computeFirstMoveProbability(genetics, state, context, demographics) {
+      return computeCoopProbability(
+        genetics, state, context, demographics,
+        [0, 0, 0], [0, 0, 0], 0, 0, 0
+      );
+    }
+
+    // Slider component
+    function Slider({ label, value, onChange, min = 0, max = 1, step = 0.01, color = '#4ade80' }) {
+      return (
+        <div className="slider-row">
+          <label>{label}</label>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={e => onChange(parseFloat(e.target.value))}
+            style={{ '--slider-color': color }}
+          />
+          <span className="value">{value.toFixed(2)}</span>
+        </div>
+      );
+    }
+
+    // Probability cell with color gradient
+    function ProbCell({ value }) {
+      const hue = (value / 100) * 120;
+      const bg = `hsl(${hue}, 70%, 25%)`;
+      const text = value > 50 ? '#fff' : '#ddd';
+      
+      return (
+        <td style={{ backgroundColor: bg, color: text }}>
+          {Math.round(value)}
+        </td>
+      );
+    }
+
+    function PDVisualizer() {
+      // Genetic parameters (Big 5 + social)
+      const [genetics, setGenetics] = useState({
+        openness: 0.5,
+        conscientiousness: 0.5,
+        extraversion: 0.5,
+        agreeableness: 0.5,
+        neuroticism: 0.5,
+        kinAltruism: 0.5,    // 0.5 = neutral, >0.5 = ingroup preference
+        xenophobia: 0.5      // 0.5 = neutral, >0.5 = ingroup preference
+      });
+      
+      // Global state (happiness + world trust, both [0,1])
+      const [state, setState] = useState({
+        happiness: 0.5,    // 0 (distressed) to 1 (satisfied), 0.5 = neutral
+        worldTrust: 0.5    // 0 (cynical) to 1 (trusting), 0.5 = neutral
+      });
+      
+      // Environmental context
+      const [context, setContext] = useState({
+        relatedness: 0,
+        geneticDistance: 0,
+        culturalDistance: -1  // -1 = undefined (skip cultural mechanics)
+      });
+      
+      // Demographics
+      const [demographics, setDemographics] = useState({
+        ownSex: 'm',
+        oppSex: 'm',
+        ownAge: 30,
+        oppAge: 30
+      });
+      
+      // Long-term history (pre-history is active when nPre > 0)
+      // Avgs in [-1, 1]: -1 = always defected, 0 = neutral, +1 = always cooperated
+      const [ownAvg, setOwnAvg] = useState(0);
+      const [oppAvg, setOppAvg] = useState(0);
+      const [nPre, setNPre] = useState(0);
+      
+      // Compute decay rate and weights for display
+      const decayInfo = useMemo(() => {
+        const C = genetics.conscientiousness;
+        const N = genetics.neuroticism;
+        let decayRate = 0.4 + 0.8 * C - 0.5 * N;
+        decayRate = clamp(decayRate, 0.1, 1.1);
+        
+        // Compute weights with current nPre
+        const weights = computeWeights(decayRate, 3, nPre);
+        
+        return { 
+          decayRate: decayRate.toFixed(2), 
+          weights: [
+            ...weights.recent.map(w => (w * 100).toFixed(1)),
+            (weights.pre * 100).toFixed(1)
+          ]
+        };
+      }, [genetics.conscientiousness, genetics.neuroticism, nPre]);
+
+      // Compute probability matrix for depth 3
+      const matrix3 = useMemo(() => {
+        return PATTERNS_3.map(ownPattern => {
+          const own = patternToArray(ownPattern, 3);
+          return PATTERNS_3.map(oppPattern => {
+            const opp = patternToArray(oppPattern, 3);
+            return computeCoopProbability(genetics, state, context, demographics, own, opp, ownAvg, oppAvg, nPre);
+          });
+        });
+      }, [genetics, state, context, demographics, ownAvg, oppAvg, nPre]);
+      
+      // Compute probability matrix for depth 2
+      const matrix2 = useMemo(() => {
+        return PATTERNS_2.map(ownPattern => {
+          const own = patternToArray(ownPattern, 3);
+          return PATTERNS_2.map(oppPattern => {
+            const opp = patternToArray(oppPattern, 3);
+            return computeCoopProbability(genetics, state, context, demographics, own, opp, ownAvg, oppAvg, nPre);
+          });
+        });
+      }, [genetics, state, context, demographics, ownAvg, oppAvg, nPre]);
+      
+      // Compute probability matrix for depth 1
+      const matrix1 = useMemo(() => {
+        return PATTERNS_1.map(ownPattern => {
+          const own = patternToArray(ownPattern, 3);
+          return PATTERNS_1.map(oppPattern => {
+            const opp = patternToArray(oppPattern, 3);
+            return computeCoopProbability(genetics, state, context, demographics, own, opp, ownAvg, oppAvg, nPre);
+          });
+        });
+      }, [genetics, state, context, demographics, ownAvg, oppAvg, nPre]);
+      
+      // Compute first move probability (no history)
+      const firstMoveProb = useMemo(() => {
+        return computeFirstMoveProbability(genetics, state, context, demographics);
+      }, [genetics, state, context, demographics]);
+      
+      // Preset personalities
+      const presets = {
+        'Classic TFT': { 
+          openness: 0.5, 
+          conscientiousness: 0.3,  // moderate justice
+          extraversion: 1.0,       // fully transparent
+          agreeableness: 0.4,      // moderate baseline
+          neuroticism: 1.0,        // short memory, strong negative reaction
+          kinAltruism: 0.5,        // neutral
+          xenophobia: 0.5          // neutral
+        },
+        'Always Cooperate': { 
+          openness: 0.5, 
+          conscientiousness: 0.0,  // no justice concerns
+          extraversion: 0.5,
+          agreeableness: 1.0,      // maximum baseline cooperation
+          neuroticism: 0.0,        // stoic: dampens negative, boosts positive
+          kinAltruism: 0.5, 
+          xenophobia: 0.5 
+        },
+        'Always Defect': { 
+          openness: 0.5, 
+          conscientiousness: 0.0,  // no principles = max deviousness with E=0
+          extraversion: 0.0,       // max deviousness
+          agreeableness: 0.0,      // no baseline cooperation
+          neuroticism: 1.0,        // strong negativity, ignores positive signals
+          kinAltruism: 0.5, 
+          xenophobia: 0.5 
+        },
+        'Grim Trigger': { 
+          openness: 0.5,
+          conscientiousness: 1.0,  // max justice + long memory + first-move C boost
+          extraversion: 1.0,       // fully transparent
+          agreeableness: 0.0,      // no forgiveness baseline
+          neuroticism: 0.5,        // neutral - punishment comes from C, not N
+          kinAltruism: 0.5, 
+          xenophobia: 0.5
+        },
+        'Forgiving (GTFT)': { 
+          openness: 0.5, 
+          conscientiousness: 0.1,  // low justice = high forgiveness (A*(1-C))
+          extraversion: 0.6,
+          agreeableness: 0.6,      // moderate agreeable
+          neuroticism: 0.2,        // dampens negative reactions
+          kinAltruism: 0.5, 
+          xenophobia: 0.5 
+        },
+        'Suspicious Start': {
+          openness: 0.5,
+          conscientiousness: 0.3,  // some principles but below C boost threshold
+          extraversion: 0.7,
+          agreeableness: 0.2,      // low initial cooperation
+          neuroticism: 0.7,
+          kinAltruism: 0.5,
+          xenophobia: 0.5
+        },
+        'Pavlov': {
+          // Win-stay, lose-shift: repeat action if good outcome
+          openness: 0.5,
+          conscientiousness: 0.2,  // short memory, outcome-focused
+          extraversion: 0.9,       // transparent, reactive
+          agreeableness: 0.5,      // moderate baseline
+          neuroticism: 0.6,        // slightly amplifies recent events
+          kinAltruism: 0.5,
+          xenophobia: 0.5
+        },
+        'Grudger': {
+          // Like Grim but with some forgiveness possibility
+          openness: 0.5,
+          conscientiousness: 0.8,  // high justice, strong memory
+          extraversion: 0.8,
+          agreeableness: 0.3,      // low forgiveness
+          neuroticism: 0.7,        // amplifies betrayal
+          kinAltruism: 0.5,
+          xenophobia: 0.5
+        },
+        'Devious': {
+          openness: 0.5,
+          conscientiousness: 0.2,  // low principles
+          extraversion: 0.2,       // low transparency
+          agreeableness: 0.6,      // appears cooperative
+          neuroticism: 0.3,
+          kinAltruism: 0.5,
+          xenophobia: 0.5
+        }
+      };
+      
+      const applyPreset = (name) => {
+        setGenetics(presets[name]);
+        setState({ happiness: 0.5, worldTrust: 0.5 });
+      };
+
+      return (
+        <div className="container">
+          <header>
+            <h1>Prisoner's Dilemma Strategy Visualizer</h1>
+            <p className="subtitle">Cooperation probability based on Big 5 personality, global state, and context</p>
+          </header>
+          
+          <div className="main-grid">
+            <section className="matrix-section">
+              <h2>Cooperation Probability by History Depth</h2>
+              
+              <div className="matrices-grid">
+                <div className="matrix-panel first-move-panel">
+                  <h3>No History (First Move)</h3>
+                  <div className="first-move-display">
+                    <span className="first-move-value" style={{
+                      backgroundColor: `hsl(${(firstMoveProb / 100) * 120}, 70%, 25%)`,
+                      color: firstMoveProb > 50 ? '#fff' : '#ddd'
+                    }}>
+                      {Math.round(firstMoveProb)}%
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="matrix-panel decay-panel">
+                  <h3>Memory Dynamics</h3>
+                  <div className="decay-info">
+                    <div className="decay-rate">
+                      <span className="label">Decay Rate:</span>
+                      <span className="value">{decayInfo.decayRate}</span>
+                    </div>
+                    <div className="decay-rate">
+                      <span className="label">n_pre:</span>
+                      <span className="value">{nPre}</span>
+                    </div>
+                    <div className="weights-display">
+                      <span className="label">Weights:</span>
+                      <div className="weight-bars">
+                        {['t-1', 't-2', 't-3', 'pre'].map((label, i) => (
+                          <div key={label} className="weight-item">
+                            <div className="weight-bar" style={{
+                              height: `${parseFloat(decayInfo.weights[i]) * 1.2}px`,
+                              backgroundColor: i < 3 ? `hsl(${200 - i * 30}, 70%, 50%)` : '#f59e0b'
+                            }}></div>
+                            <span className="weight-label">{label}</span>
+                            <span className="weight-value">{decayInfo.weights[i]}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="matrix-panel">
+                  <h3>1 Interaction</h3>
+                  <p className="matrix-hint">Rows = Own | Cols = Opponent</p>
+                  <table className="matrix-small">
+                    <thead>
+                      <tr>
+                        <th></th>
+                        {PATTERNS_1.map(p => <th key={p}>{p}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {PATTERNS_1.map((ownPattern, i) => (
+                        <tr key={ownPattern}>
+                          <th>{ownPattern}</th>
+                          {matrix1[i].map((prob, j) => (
+                            <ProbCell key={j} value={prob} />
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div className="matrix-panel">
+                  <h3>2 Interactions</h3>
+                  <p className="matrix-hint">Rows = Own | Cols = Opponent</p>
+                  <table className="matrix-small">
+                    <thead>
+                      <tr>
+                        <th></th>
+                        {PATTERNS_2.map(p => <th key={p}>{p}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {PATTERNS_2.map((ownPattern, i) => (
+                        <tr key={ownPattern}>
+                          <th>{ownPattern}</th>
+                          {matrix2[i].map((prob, j) => (
+                            <ProbCell key={j} value={prob} />
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <div className="matrix-panel matrix-full">
+                <h3>3 Interactions (Full History)</h3>
+                <p className="matrix-hint">Rows = Own history (most recent first) | Columns = Opponent history</p>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th></th>
+                        {PATTERNS_3.map(p => <th key={p}>{p}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {PATTERNS_3.map((ownPattern, i) => (
+                        <tr key={ownPattern}>
+                          <th>{ownPattern}</th>
+                          {matrix3[i].map((prob, j) => (
+                            <ProbCell key={j} value={prob} />
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <div className="legend">
+                <span className="legend-item"><span className="swatch" style={{background: 'hsl(0, 70%, 25%)'}}></span> 0% (Defect)</span>
+                <span className="legend-item"><span className="swatch" style={{background: 'hsl(60, 70%, 25%)'}}></span> 50%</span>
+                <span className="legend-item"><span className="swatch" style={{background: 'hsl(120, 70%, 25%)'}}></span> 100% (Cooperate)</span>
+              </div>
+            </section>
+            
+            <section className="controls-section">
+              <div className="presets">
+                <h3>Presets</h3>
+                <div className="preset-buttons">
+                  {Object.keys(presets).map(name => (
+                    <button key={name} onClick={() => applyPreset(name)}>{name}</button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="control-group">
+                <h3>🧬 Genetic Parameters (Big 5)</h3>
+                <Slider label="Openness" value={genetics.openness} color="#60a5fa"
+                  onChange={v => setGenetics({...genetics, openness: v})} />
+                <Slider label="Conscientiousness" value={genetics.conscientiousness} color="#a78bfa"
+                  onChange={v => setGenetics({...genetics, conscientiousness: v})} />
+                <Slider label="Extraversion" value={genetics.extraversion} color="#fbbf24"
+                  onChange={v => setGenetics({...genetics, extraversion: v})} />
+                <Slider label="Agreeableness" value={genetics.agreeableness} color="#4ade80"
+                  onChange={v => setGenetics({...genetics, agreeableness: v})} />
+                <Slider label="Neuroticism" value={genetics.neuroticism} color="#f87171"
+                  onChange={v => setGenetics({...genetics, neuroticism: v})} />
+              </div>
+              
+              <div className="control-group">
+                <h3>👥 Social Parameters</h3>
+                <Slider label="Kin Altruism" value={genetics.kinAltruism} min={0} max={1} color="#2dd4bf"
+                  onChange={v => setGenetics({...genetics, kinAltruism: v})} />
+                <Slider label="Xenophobia" value={genetics.xenophobia} min={0} max={1} color="#fb923c"
+                  onChange={v => setGenetics({...genetics, xenophobia: v})} />
+                <p style={{fontSize: '0.65rem', color: '#64748b', marginTop: '4px'}}>
+                  0.5 = neutral. {">"} 0.5 = ingroup preference. {"<"} 0.5 = outgroup preference (weaker slope).
+                </p>
+              </div>
+              
+              <div className="control-group">
+                <h3>💭 Global State</h3>
+                <Slider label="Happiness" value={state.happiness} min={0} max={1} color="#fde047"
+                  onChange={v => setState({...state, happiness: v})} />
+                <Slider label="World Trust (reserved)" value={state.worldTrust} min={0} max={1} color="#64748b"
+                  onChange={v => setState({...state, worldTrust: v})} />
+                <p style={{fontSize: '0.65rem', color: '#64748b', marginTop: '4px'}}>
+                  World Trust has no effect currently (reserved for future dynamics)
+                </p>
+              </div>
+              
+              <div className="control-group">
+                <h3>🌍 Social Context</h3>
+                <Slider label="Relatedness" value={context.relatedness} min={0} max={1} color="#34d399"
+                  onChange={v => setContext({...context, relatedness: v})} />
+                <Slider label="Genetic Distance²" value={context.geneticDistance} min={0} max={75} step={1} color="#f97316"
+                  onChange={v => setContext({...context, geneticDistance: v})} />
+                <Slider label="Cultural Distance²" value={context.culturalDistance} min={-1} max={75} step={1} color="#c084fc"
+                  onChange={v => setContext({...context, culturalDistance: v})} />
+                <p style={{fontSize: '0.65rem', color: '#64748b', marginTop: '4px'}}>
+                  Relatedness: 0.5=sibling, 0.25=grandparent, 0.125=cousin. Distances: squared Euclidean, 75=max ("alien"). Cultural: -1=skip.
+                </p>
+              </div>
+              
+              <div className="control-group">
+                <h3>👤 Demographics</h3>
+                <div style={{display: 'flex', gap: '16px', marginBottom: '12px'}}>
+                  <div style={{flex: 1}}>
+                    <label style={{fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '6px'}}>Own Sex</label>
+                    <div style={{display: 'flex', gap: '4px'}}>
+                      <button 
+                        onClick={() => setDemographics({...demographics, ownSex: 'm'})}
+                        style={{
+                          flex: 1, padding: '6px', border: '1px solid #475569', borderRadius: '4px',
+                          background: demographics.ownSex === 'm' ? '#3b82f6' : '#1e293b',
+                          color: '#e2e8f0', cursor: 'pointer', fontSize: '0.75rem'
+                        }}>M</button>
+                      <button 
+                        onClick={() => setDemographics({...demographics, ownSex: 'f'})}
+                        style={{
+                          flex: 1, padding: '6px', border: '1px solid #475569', borderRadius: '4px',
+                          background: demographics.ownSex === 'f' ? '#ec4899' : '#1e293b',
+                          color: '#e2e8f0', cursor: 'pointer', fontSize: '0.75rem'
+                        }}>F</button>
+                    </div>
+                  </div>
+                  <div style={{flex: 1}}>
+                    <label style={{fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '6px'}}>Opponent Sex</label>
+                    <div style={{display: 'flex', gap: '4px'}}>
+                      <button 
+                        onClick={() => setDemographics({...demographics, oppSex: 'm'})}
+                        style={{
+                          flex: 1, padding: '6px', border: '1px solid #475569', borderRadius: '4px',
+                          background: demographics.oppSex === 'm' ? '#3b82f6' : '#1e293b',
+                          color: '#e2e8f0', cursor: 'pointer', fontSize: '0.75rem'
+                        }}>M</button>
+                      <button 
+                        onClick={() => setDemographics({...demographics, oppSex: 'f'})}
+                        style={{
+                          flex: 1, padding: '6px', border: '1px solid #475569', borderRadius: '4px',
+                          background: demographics.oppSex === 'f' ? '#ec4899' : '#1e293b',
+                          color: '#e2e8f0', cursor: 'pointer', fontSize: '0.75rem'
+                        }}>F</button>
+                    </div>
+                  </div>
+                </div>
+                <Slider label="Own Age" value={demographics.ownAge} min={7} max={80} step={1} color="#60a5fa"
+                  onChange={v => setDemographics({...demographics, ownAge: v})} />
+                <Slider label="Opponent Age" value={demographics.oppAge} min={7} max={80} step={1} color="#a78bfa"
+                  onChange={v => setDemographics({...demographics, oppAge: v})} />
+              </div>
+              
+              <div className="control-group">
+                <h3>📊 Long-term History</h3>
+                <Slider label="Pre-history Length (n_pre)" value={nPre} min={0} max={300} step={1} color="#94a3b8"
+                  onChange={setNPre} />
+                <Slider label="Own Avg" value={ownAvg} min={-1} max={1} color="#94a3b8"
+                  onChange={setOwnAvg} />
+                <Slider label="Opponent Avg" value={oppAvg} min={-1} max={1} color="#cbd5e1"
+                  onChange={setOppAvg} />
+                <p style={{fontSize: '0.65rem', color: '#64748b', marginTop: '4px'}}>
+                  n_pre=0 disables pre-history. Avgs in [-1,1]: -1=always defect, 0=mixed, +1=always coop
+                </p>
+              </div>
+            </section>
+          </div>
+          
+          <footer>
+            <p>
+              <strong>Reading the matrices:</strong> Each cell shows cooperation probability (0-100%). 
+              History codes: C=Cooperated, D=Defected. First letter is most recent.
+              Example: "CCD" = Cooperated last turn, Cooperated 2 turns ago, Defected 3 turns ago.
+            </p>
+            <p style={{marginTop: '8px'}}>
+              <strong>Trait effects:</strong>{' '}
+              <strong>C</strong>=justice (long memory, punishes defection, penalizes own unprovoked defection);{' '}
+              <strong>E</strong>=transparency (high E amplifies overt reciprocity; low E×C enables deviousness);{' '}
+              <strong>A</strong>=baseline cooperation + forgiveness tendency (A×(1-C));{' '}
+              <strong>N</strong>=centered at 0.5: N=0 dampens negative/boosts positive (stoic), N=1 amplifies negative/dampens positive (neurotic), also affects decay rate.{' '}
+              <strong>O</strong>=reserved for social/malleability mechanics.
+            </p>
+            <p style={{marginTop: '8px'}}>
+              <strong>Global state:</strong>{' '}
+              <strong>Happiness</strong>=slight linear effect (0.5=neutral, ±0.4 at extremes);{' '}
+              <strong>World Trust</strong>=reserved (no effect currently).
+            </p>
+            <p style={{marginTop: '8px'}}>
+              <strong>Social parameters:</strong>{' '}
+              <strong>Kin Altruism</strong> reacts to Relatedness; <strong>Xenophobia</strong> reacts to Genetic Distance².{' '}
+              Cultural Distance² uses average of both (blends clannishness and ethnic preference).{' '}
+              All: 0.5=neutral, {">"}0.5=ingroup pref (±3 max), {"<"}0.5=outgroup pref (half slope).{' '}
+              O reduces xenophobic/cultural effects.
+            </p>
+            <p style={{marginTop: '8px'}}>
+              <strong>Demographics (age tiers):</strong>{' '}
+              <strong>Children</strong> (7-14): no sex effects, boost for older opponents up to +1.8 (capped +10yr).{' '}
+              <strong>Juveniles</strong> (14-21): opposite-sex boost up to +3; vs adults/elderly: rebelliousness fades 14→21 (-0.8→0), C shifts ±0.8.{' '}
+              <strong>Adults</strong> (21-65): boost for elderly/children up to +1.5, M→F up to +1.2, F→F penalty up to -1.5 (scaled by N).
+            </p>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<PDVisualizer />, document.getElementById('root'));
+  </script>
+</body>
+</html>
