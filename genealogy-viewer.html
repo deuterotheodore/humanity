@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genealogical Tree Viewer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%);
+      color: #c9d1d9;
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      background: linear-gradient(90deg, #58a6ff, #a371f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    #fileInput {
+      font-size: 12px;
+      color: #c9d1d9;
+    }
+    
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+    
+    .slider-group label {
+      opacity: 0.7;
+    }
+    
+    .slider-group input[type="range"] {
+      width: 70px;
+      accent-color: #58a6ff;
+      height: 4px;
+    }
+    
+    .slider-group span {
+      width: 20px;
+      text-align: center;
+      font-weight: 600;
+    }
+    
+    .stats-bar {
+      font-size: 10px;
+      padding: 6px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      background: rgba(0,0,0,0.2);
+    }
+    
+    .stats-bar .stat {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .stats-bar .stat-label {
+      opacity: 0.5;
+    }
+    
+    .stats-bar .stat-value {
+      color: #58a6ff;
+      font-weight: 600;
+    }
+    
+    .legend {
+      padding: 8px 20px;
+      display: flex;
+      gap: 16px;
+      font-size: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      flex-wrap: wrap;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      opacity: 0.8;
+    }
+    
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .legend-line {
+      width: 20px;
+      height: 2px;
+    }
+    
+    .canvas-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    #treeCanvas {
+      cursor: grab;
+      display: block;
+    }
+    
+    #treeCanvas:active {
+      cursor: grabbing;
+    }
+    
+    .tooltip {
+      position: fixed;
+      background: rgba(22, 27, 34, 0.97);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 11px;
+      pointer-events: none;
+      z-index: 1000;
+      max-width: 280px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      display: none;
+    }
+    
+    .tooltip h4 {
+      color: #58a6ff;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .tooltip p {
+      margin: 4px 0;
+      line-height: 1.5;
+    }
+    
+    .tooltip .label {
+      opacity: 0.5;
+    }
+    
+    .instructions {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      opacity: 0.6;
+    }
+    
+    .instructions h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: #58a6ff;
+    }
+    
+    .instructions p {
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    
+    .instructions code {
+      background: rgba(255,255,255,0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    
+    .controls-overlay {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .ctrl-btn {
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .ctrl-btn:hover {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+    
+    .gen-labels {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 9px;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    
+    .search-box {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .search-box input {
+      width: 70px;
+      padding: 4px 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      background: rgba(0,0,0,0.3);
+      color: #c9d1d9;
+      font-size: 11px;
+    }
+    
+    .search-box input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+    
+    .search-box button {
+      padding: 4px 10px;
+      background: rgba(88, 166, 255, 0.2);
+      border: 1px solid rgba(88, 166, 255, 0.4);
+      border-radius: 4px;
+      color: #58a6ff;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    
+    .search-box button:hover {
+      background: rgba(88, 166, 255, 0.3);
+    }
+    
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .toggle-label input[type="checkbox"] {
+      accent-color: #3fb950;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+    
+    .toggle-label span {
+      opacity: 0.8;
+    }
+    
+    .reset-btn {
+      padding: 4px 10px;
+      background: rgba(248, 81, 73, 0.2);
+      border: 1px solid rgba(248, 81, 73, 0.4);
+      border-radius: 4px;
+      color: #f85149;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    
+    .reset-btn:hover {
+      background: rgba(248, 81, 73, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>◈ GENEALOGICAL TREE VIEWER</h1>
+    <div class="controls">
+      <input type="file" id="fileInput" accept=".txt,.json">
+      <div class="slider-group">
+        <label>Iteration Depth:</label>
+        <input type="range" id="depthSlider" min="1" max="15" value="5">
+        <span id="depthVal">5</span>
+      </div>
+      <div class="search-box">
+        <input type="number" id="searchId" placeholder="ID #">
+        <button id="searchBtn">Find</button>
+      </div>
+      <label class="toggle-label">
+        <input type="checkbox" id="directOnlyToggle">
+        <span>Direct bloodline only</span>
+      </label>
+      <button id="resetProband" class="reset-btn" title="Reset to original proband">⟲ Original</button>
+    </div>
+  </div>
+  
+  <div class="stats-bar" id="stats">
+    <div class="stat"><span class="stat-label">Status:</span> <span class="stat-value">No data loaded</span></div>
+  </div>
+  
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #f85149;"></div>
+      <span>Self</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #3fb950;"></div>
+      <span>Direct Bloodline</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #58a6ff;"></div>
+      <span>Blood Relation</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #8b949e;"></div>
+      <span>No Known Blood Relation</span>
+    </div>
+    <div class="legend-item">
+      <div style="width: 10px; height: 10px; border: 2px solid #888; background: transparent; border-radius: 50%;"></div>
+      <span>Shown Elsewhere (outline only)</span>
+    </div>
+    <div class="legend-item">
+      <div style="width: 10px; height: 10px; background: #888;"></div>
+      <span>Male</span>
+    </div>
+    <div class="legend-item">
+      <div style="width: 10px; height: 10px; background: #888; border-radius: 50%;"></div>
+      <span>Female</span>
+    </div>
+    <div class="legend-item">
+      <div style="width: 10px; height: 10px; background: #888; border-radius: 3px;"></div>
+      <span>Unknown</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background: rgba(139, 148, 158, 0.6);"></div>
+      <span>Parent→Child</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background: #d29922; height: 0; border-top: 2px dashed #d29922;"></div>
+      <span>Couple</span>
+    </div>
+  </div>
+  
+  <div class="canvas-container">
+    <canvas id="treeCanvas"></canvas>
+    <div class="instructions" id="instructions">
+      <h2>Load a genealogy file</h2>
+      <p>Expected format: <code>ID [[ancestry], [posterity]]</code></p>
+      <p>Drag to pan • Scroll to zoom • Hover for details</p>
+      <p>Click any node to recenter tree on that individual</p>
+    </div>
+    <div class="controls-overlay">
+      <button class="ctrl-btn" id="zoomIn" title="Zoom In">+</button>
+      <button class="ctrl-btn" id="zoomOut" title="Zoom Out">−</button>
+      <button class="ctrl-btn" id="zoomReset" title="Reset View">⟲</button>
+    </div>
+  </div>
+  
+  <div class="tooltip" id="tooltip"></div>
+
+<script>
+// ============================================
+// GENEALOGY DATA PARSER
+// ============================================
+
+class GenealogyParser {
+  constructor() {
+    this.individuals = new Map();
+    this.parentChildRelations = [];
+    this.couples = new Set();
+    this.selfId = null;
+  }
+  
+  reset() {
+    this.individuals.clear();
+    this.parentChildRelations = [];
+    this.couples.clear();
+    this.selfId = null;
+  }
+  
+  parseFile(text) {
+    this.reset();
+    text = text.trim();
+    
+    // Try different formats
+    let selfId, tree;
+    
+    // Format 1: "ID [[tree]]" (space-separated)
+    const spaceMatch = text.match(/^(\d+)\s+(\[.*)$/s);
+    if (spaceMatch) {
+      selfId = parseInt(spaceMatch[1]);
+      tree = this.evalSafe(spaceMatch[2]);
+    } else {
+      // Format 2: [id, tree] or JSON
+      const data = this.evalSafe(text);
+      if (Array.isArray(data) && data.length >= 2 && typeof data[0] === 'number') {
+        selfId = data[0];
+        tree = data[1];
+      } else {
+        throw new Error("Unrecognized data format");
+      }
+    }
+    
+    this.selfId = selfId;
+    this.processIndividual(selfId, tree, 0);
+    
+    // Deduce sex from ancestry entries (father=index 0, mother=index 2)
+    // Also track conflicts/warnings for data validation
+    const sexMap = new Map(); // 'M', 'F', or undefined
+    const sexWarnings = []; // Array of conflicts where same ID appears as both father and mother
+    
+    this.parentChildRelations.forEach(rel => {
+      const expectedSex = rel.parentRole === 'father' ? 'M' : (rel.parentRole === 'mother' ? 'F' : null);
+      
+      if (expectedSex) {
+        // Check for conflict
+        const currentSex = sexMap.get(rel.parent);
+        if (currentSex && currentSex !== expectedSex) {
+          // Conflict detected - same individual listed as both father and mother
+          sexWarnings.push({
+            id: rel.parent,
+            currentSex: currentSex,
+            newRole: rel.parentRole,
+            newSex: expectedSex,
+            childId: rel.child
+          });
+        } else {
+          sexMap.set(rel.parent, expectedSex);
+        }
+      }
+    });
+    
+    // Log warnings
+    if (sexWarnings.length > 0) {
+      console.warn('Sex assignment conflicts detected:', sexWarnings);
+    }
+    
+    return {
+      individuals: this.individuals,
+      parentChildRelations: this.parentChildRelations,
+      couples: Array.from(this.couples).map(key => {
+        const [p1, p2] = key.split('-').map(Number);
+        return { p1, p2 };
+      }),
+      selfId: this.selfId,
+      sexMap: sexMap,
+      sexWarnings: sexWarnings
+    };
+  }
+  
+  evalSafe(text) {
+    // Only allow arrays, numbers, and basic syntax
+    try {
+      return JSON.parse(text);
+    } catch {
+      // Fallback to eval for JS array literals (not JSON)
+      return (new Function('return ' + text))();
+    }
+  }
+  
+  processIndividual(id, tree, generation) {
+    if (!this.individuals.has(id)) {
+      this.individuals.set(id, {
+        id,
+        firstGeneration: generation,
+        allGenerations: new Set([generation])
+      });
+    } else {
+      this.individuals.get(id).allGenerations.add(generation);
+    }
+    
+    // tree = -1 means pedigree collapse (already processed elsewhere)
+    if (tree === -1) return;
+    
+    // tree should be [ancestry, posterity]
+    if (!Array.isArray(tree) || tree.length < 2) return;
+    
+    const [ancestry, posterity] = tree;
+    this.processAncestry(id, ancestry, generation);
+    this.processPosterity(id, posterity, generation);
+  }
+  
+  processAncestry(childId, ancestry, childGeneration) {
+    if (!Array.isArray(ancestry) || ancestry.length < 2) return;
+    
+    let fatherId, fatherTree, motherId, motherTree;
+    let singleParentId = null, singleParentTree = null;
+    
+    if (ancestry.length >= 4) {
+      // Normal case: [fatherId, fatherTree, motherId, motherTree]
+      [fatherId, fatherTree, motherId, motherTree] = ancestry;
+    } else if (ancestry.length >= 2) {
+      // Single parent case: we don't know if it's father or mother
+      // Just record the relationship without assigning sex
+      singleParentId = ancestry[0];
+      singleParentTree = ancestry[1];
+    }
+    
+    const parentGeneration = childGeneration - 1;
+    
+    // Process father (if known)
+    if (typeof fatherId === 'number') {
+      if (!this.individuals.has(fatherId)) {
+        this.individuals.set(fatherId, {
+          id: fatherId,
+          firstGeneration: parentGeneration,
+          allGenerations: new Set([parentGeneration])
+        });
+      } else {
+        this.individuals.get(fatherId).allGenerations.add(parentGeneration);
+      }
+      
+      this.parentChildRelations.push({
+        parent: fatherId,
+        child: childId,
+        parentGen: parentGeneration,
+        childGen: childGeneration,
+        parentRole: 'father'
+      });
+      
+      if (fatherTree !== -1) {
+        this.processIndividual(fatherId, fatherTree, parentGeneration);
+      }
+    }
+    
+    // Process mother (if known)
+    if (typeof motherId === 'number') {
+      if (!this.individuals.has(motherId)) {
+        this.individuals.set(motherId, {
+          id: motherId,
+          firstGeneration: parentGeneration,
+          allGenerations: new Set([parentGeneration])
+        });
+      } else {
+        this.individuals.get(motherId).allGenerations.add(parentGeneration);
+      }
+      
+      this.parentChildRelations.push({
+        parent: motherId,
+        child: childId,
+        parentGen: parentGeneration,
+        childGen: childGeneration,
+        parentRole: 'mother'
+      });
+      
+      if (motherTree !== -1) {
+        this.processIndividual(motherId, motherTree, parentGeneration);
+      }
+    }
+    
+    // Process single parent (sex unknown - 2-element ancestry array)
+    if (typeof singleParentId === 'number') {
+      if (!this.individuals.has(singleParentId)) {
+        this.individuals.set(singleParentId, {
+          id: singleParentId,
+          firstGeneration: parentGeneration,
+          allGenerations: new Set([parentGeneration])
+        });
+      } else {
+        this.individuals.get(singleParentId).allGenerations.add(parentGeneration);
+      }
+      
+      this.parentChildRelations.push({
+        parent: singleParentId,
+        child: childId,
+        parentGen: parentGeneration,
+        childGen: childGeneration
+        // No parentRole - we don't know if this is father or mother
+      });
+      
+      if (singleParentTree !== -1) {
+        this.processIndividual(singleParentId, singleParentTree, parentGeneration);
+      }
+    }
+    
+    // Record couple (only if both parents known)
+    if (typeof fatherId === 'number' && typeof motherId === 'number') {
+      const coupleKey = [fatherId, motherId].sort((a, b) => a - b).join('-');
+      this.couples.add(coupleKey);
+    }
+  }
+  
+  processPosterity(parentId, posterity, parentGeneration) {
+    if (!Array.isArray(posterity) || posterity.length === 0) return;
+    
+    const childGeneration = parentGeneration + 1;
+    
+    for (let i = 0; i < posterity.length; i += 2) {
+      const childId = posterity[i];
+      const childTree = posterity[i + 1];
+      
+      if (typeof childId !== 'number') continue;
+      
+      if (!this.individuals.has(childId)) {
+        this.individuals.set(childId, {
+          id: childId,
+          firstGeneration: childGeneration,
+          allGenerations: new Set([childGeneration])
+        });
+      } else {
+        this.individuals.get(childId).allGenerations.add(childGeneration);
+      }
+      
+      this.parentChildRelations.push({
+        parent: parentId,
+        child: childId,
+        parentGen: parentGeneration,
+        childGen: childGeneration
+        // Note: NO parentRole here - we don't know if parentId is father or mother
+      });
+      
+      if (childTree !== -1 && Array.isArray(childTree)) {
+        this.processIndividual(childId, childTree, childGeneration);
+        
+        // Extract other parent from child's ancestry
+        if (childTree.length >= 1) {
+          const childAncestry = childTree[0];
+          if (Array.isArray(childAncestry) && childAncestry.length >= 4) {
+            const otherParent = childAncestry[0] === parentId ? childAncestry[2] : childAncestry[0];
+            if (typeof otherParent === 'number' && otherParent !== parentId) {
+              const coupleKey = [parentId, otherParent].sort((a, b) => a - b).join('-');
+              this.couples.add(coupleKey);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// ============================================
+// CANVAS TREE RENDERER
+// ============================================
+
+class TreeRenderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.data = null;
+    
+    // View state
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.scale = 1;
+    
+    // Layout settings
+    this.nodeRadius = 16;
+    this.rowHeight = 80;
+    this.nodeSpacing = 10;
+    this.iterationDepth = 5;
+    
+    // Interaction state
+    this.isDragging = false;
+    this.lastMouseX = 0;
+    this.lastMouseY = 0;
+    this.hoveredNode = null;
+    this.highlightedNode = null;
+    this.directOnlyMode = false;
+    
+    // Computed layout
+    this.positions = new Map();
+    this.generationRows = new Map();
+    this.visibleIndividuals = new Set();
+    this.sexMap = new Map();
+    this.collapseRefs = [];
+    this.visitedInfo = new Map();
+    
+    // For highlighting: map id -> all position keys with that id
+    this.idToPositionKeys = new Map();
+    
+    // Drawn edges (for stats and highlighting)
+    this.drawnParentChildEdges = [];
+    this.drawnCoupleEdges = [];
+    
+    // Colors - updated for new scheme
+    this.colors = {
+      self: '#f85149',
+      directBloodline: '#3fb950',    // Direct ancestors or descendants
+      bloodRelation: '#58a6ff',       // Blood relatives (up then down)
+      noBloodRelation: '#8b949e',     // No known blood relation (in-laws)
+      hovered: '#ffa657',
+      parentChild: 'rgba(139, 148, 158, 0.5)',
+      couple: '#d29922',
+      genLine: 'rgba(255,255,255,0.03)',
+      text: '#ffffff',
+      nodeBorder: 'rgba(255,255,255,0.2)'
+    };
+    
+    this.setupEvents();
+    this.resize();
+  }
+  
+  setupEvents() {
+    window.addEventListener('resize', () => this.resize());
+    
+    this.canvas.addEventListener('mousedown', (e) => {
+      this.isDragging = true;
+      this.dragStartX = e.clientX;
+      this.dragStartY = e.clientY;
+      this.lastMouseX = e.clientX;
+      this.lastMouseY = e.clientY;
+      this.canvas.style.cursor = 'grabbing';
+    });
+    
+    window.addEventListener('mouseup', (e) => {
+      const wasDragging = this.isDragging;
+      this.isDragging = false;
+      this.canvas.style.cursor = 'grab';
+      
+      // Check if this was a click (minimal movement) vs a drag
+      if (wasDragging && this.dragStartX !== undefined) {
+        const dx = e.clientX - this.dragStartX;
+        const dy = e.clientY - this.dragStartY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // If moved less than 5 pixels, treat as click
+        if (distance < 5) {
+          this.handleClick(e);
+        }
+      }
+    });
+    
+    window.addEventListener('mousemove', (e) => {
+      if (this.isDragging) {
+        const dx = e.clientX - this.lastMouseX;
+        const dy = e.clientY - this.lastMouseY;
+        this.offsetX += dx;
+        this.offsetY += dy;
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
+        this.render();
+      } else {
+        this.checkHover(e);
+      }
+    });
+    
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = this.canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89;
+      const newScale = Math.max(0.05, Math.min(4, this.scale * zoomFactor));
+      
+      // Zoom towards mouse position
+      const worldX = (mouseX - this.offsetX) / this.scale;
+      const worldY = (mouseY - this.offsetY) / this.scale;
+      
+      this.scale = newScale;
+      this.offsetX = mouseX - worldX * this.scale;
+      this.offsetY = mouseY - worldY * this.scale;
+      
+      this.render();
+    });
+    
+    this.canvas.addEventListener('mouseleave', () => {
+      this.hoveredNode = null;
+      this.render();
+      document.getElementById('tooltip').style.display = 'none';
+    });
+  }
+  
+  handleClick(e) {
+    if (!this.data) return;
+    
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const world = this.screenToWorld(screenX, screenY);
+    
+    // Find clicked node
+    let clickedId = null;
+    let minDist = this.nodeRadius * 1.5;
+    
+    this.positions.forEach((pos, posKey) => {
+      // Skip if in directOnlyMode and node isn't visible
+      if (this.directOnlyMode && 
+          pos.relationshipType !== 'direct' && 
+          pos.relationshipType !== 'self') {
+        return;
+      }
+      
+      const dx = world.x - pos.x;
+      const dy = world.y - pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) {
+        minDist = dist;
+        clickedId = pos.id;
+      }
+    });
+    
+    if (clickedId !== null && clickedId !== this.data.selfId) {
+      this.setProband(clickedId);
+      // Trigger stats update (will be called from outside)
+      if (typeof updateStats === 'function') {
+        updateStats();
+      }
+    }
+  }
+  
+  resize() {
+    const container = this.canvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = container.clientWidth * dpr;
+    this.canvas.height = container.clientHeight * dpr;
+    this.canvas.style.width = container.clientWidth + 'px';
+    this.canvas.style.height = container.clientHeight + 'px';
+    this.ctx.scale(dpr, dpr);
+    this.displayWidth = container.clientWidth;
+    this.displayHeight = container.clientHeight;
+    this.render();
+  }
+  
+  setData(data) {
+    this.data = data;
+    this.data.originalSelfId = data.selfId;  // Store original for reset
+    this.computeLayout();
+    this.centerView();
+    this.render();
+  }
+  
+  setProband(newId) {
+    if (!this.data) return false;
+    // Check if this ID exists in our graph
+    if (!this.data.individuals.has(newId)) return false;
+    
+    this.data.selfId = newId;
+    this.computeLayout();
+    this.centerView();
+    this.render();
+    return true;
+  }
+  
+  resetToOriginalProband() {
+    if (!this.data || !this.data.originalSelfId) return false;
+    return this.setProband(this.data.originalSelfId);
+  }
+  
+  setIterationDepth(depth) {
+    this.iterationDepth = depth;
+    if (this.data) {
+      this.computeLayout();
+      this.render();
+    }
+  }
+  
+  computeLayout() {
+    if (!this.data) return;
+    
+    this.positions.clear();
+    this.generationRows.clear();
+    
+    const { individuals, parentChildRelations, selfId, sexMap } = this.data;
+    
+    // Build adjacency for quick lookup
+    const childToParents = new Map(); // child -> [{parent, role}]
+    const parentToChildren = new Map(); // parent -> [child]
+    
+    parentChildRelations.forEach(rel => {
+      if (!childToParents.has(rel.child)) childToParents.set(rel.child, []);
+      childToParents.get(rel.child).push({parent: rel.parent, role: rel.parentRole});
+      
+      if (!parentToChildren.has(rel.parent)) parentToChildren.set(rel.parent, []);
+      parentToChildren.get(rel.parent).push(rel.child);
+    });
+    
+    // BFS from self, tracking:
+    // - stepsUp: total steps going to parents
+    // - stepsDown: total steps going to children
+    // - generation = stepsDown - stepsUp (row placement: negative = ancestors above, positive = descendants below)
+    // - relationshipType: 'direct' (pure up or pure down), 'blood' (up then down), 'none' (down then up anywhere)
+    
+    const visited = new Map(); // id -> {generation, stepsUp, stepsDown, depth, relationshipType}
+    const depthMap = new Map(); // id -> iteration depth (first encounter)
+    
+    // Track collapse references (when we reach someone already at a DIFFERENT generation)
+    // Use a Map to deduplicate by (id, generation) pair
+    const collapseRefMap = new Map(); // key: `${id}_${generation}` -> collapse ref object
+    
+    // Queue item: {id, stepsUp, stepsDown, depth, fromId, hasDescended}
+    // hasDescended tracks if we've ever gone down in this path
+    const queue = [{
+      id: selfId, 
+      stepsUp: 0, 
+      stepsDown: 0, 
+      depth: 0, 
+      fromId: null, 
+      hasDescended: false,  // Track if we've gone down
+      hasAscendedAfterDescend: false  // Track if we've gone up after going down
+    }];
+    
+    visited.set(selfId, {
+      generation: 0, 
+      stepsUp: 0, 
+      stepsDown: 0, 
+      depth: 0, 
+      relationshipType: 'self'
+    });
+    depthMap.set(selfId, 0);
+    
+    while (queue.length > 0) {
+      const {id, stepsUp, stepsDown, depth, fromId, hasDescended, hasAscendedAfterDescend} = queue.shift();
+      if (depth >= this.iterationDepth) continue;
+      
+      // Find parents (go up: stepsUp + 1)
+      const parents = childToParents.get(id) || [];
+      parents.forEach(({parent}) => {
+        const newStepsUp = stepsUp + 1;
+        const newStepsDown = stepsDown;
+        const targetGen = newStepsDown - newStepsUp;  // Fixed: ancestors have negative gen
+        
+        // If we've descended before and now we're ascending, this creates a non-blood relation
+        const newHasAscendedAfterDescend = hasAscendedAfterDescend || hasDescended;
+        
+        // Determine relationship type
+        let relType;
+        if (newHasAscendedAfterDescend) {
+          relType = 'none';  // Went down then up = no blood relation
+        } else if (newStepsDown === 0) {
+          relType = 'direct';  // Pure ascent = direct bloodline
+        } else {
+          relType = 'blood';  // Went up after some down = blood relation
+        }
+        
+        if (!visited.has(parent)) {
+          // First time seeing this individual
+          visited.set(parent, {
+            generation: targetGen, 
+            stepsUp: newStepsUp, 
+            stepsDown: newStepsDown, 
+            depth: depth + 1,
+            relationshipType: relType
+          });
+          depthMap.set(parent, depth + 1);
+          queue.push({
+            id: parent, 
+            stepsUp: newStepsUp, 
+            stepsDown: newStepsDown, 
+            depth: depth + 1, 
+            fromId: id, 
+            hasDescended: hasDescended,
+            hasAscendedAfterDescend: newHasAscendedAfterDescend
+          });
+        } else {
+          // Already visited - check if at different generation
+          const existing = visited.get(parent);
+          if (existing.generation !== targetGen) {
+            // Pedigree collapse: this person appears at a different generation
+            // Deduplicate by (id, generation)
+            const collapseKey = `${parent}_${targetGen}`;
+            if (!collapseRefMap.has(collapseKey)) {
+              collapseRefMap.set(collapseKey, {
+                id: parent,
+                generation: targetGen,
+                depth: depth + 1,
+                childId: id,  // The child that led us here
+                originalGen: existing.generation,
+                relationshipType: relType
+              });
+            }
+          }
+        }
+      });
+      
+      // Find children (go down: stepsDown + 1)
+      const children = parentToChildren.get(id) || [];
+      children.forEach(child => {
+        const newStepsUp = stepsUp;
+        const newStepsDown = stepsDown + 1;
+        const targetGen = newStepsDown - newStepsUp;  // Fixed: descendants have positive gen
+        
+        // After going down, hasDescended becomes true
+        const newHasDescended = true;
+        
+        // Determine relationship type
+        let relType;
+        if (hasAscendedAfterDescend) {
+          relType = 'none';  // Already had up-after-down, stays non-blood
+        } else if (newStepsUp === 0) {
+          relType = 'direct';  // Pure descent = direct bloodline
+        } else {
+          relType = 'blood';  // Went down after some up = blood relation
+        }
+        
+        if (!visited.has(child)) {
+          visited.set(child, {
+            generation: targetGen, 
+            stepsUp: newStepsUp, 
+            stepsDown: newStepsDown, 
+            depth: depth + 1,
+            relationshipType: relType
+          });
+          depthMap.set(child, depth + 1);
+          queue.push({
+            id: child, 
+            stepsUp: newStepsUp, 
+            stepsDown: newStepsDown, 
+            depth: depth + 1, 
+            fromId: id, 
+            hasDescended: newHasDescended,
+            hasAscendedAfterDescend: hasAscendedAfterDescend
+          });
+        } else {
+          const existing = visited.get(child);
+          if (existing.generation !== targetGen) {
+            // Pedigree collapse across generations
+            // Deduplicate by (id, generation)
+            const collapseKey = `${child}_${targetGen}`;
+            if (!collapseRefMap.has(collapseKey)) {
+              collapseRefMap.set(collapseKey, {
+                id: child,
+                generation: targetGen,
+                depth: depth + 1,
+                parentId: id,  // The parent that led us here
+                originalGen: existing.generation,
+                relationshipType: relType
+              });
+            }
+          }
+        }
+      });
+    }
+    
+    // Convert collapse ref map to array
+    const collapseRefs = Array.from(collapseRefMap.values());
+    
+    // Store for rendering
+    this.visibleIndividuals = new Set(visited.keys());
+    this.sexMap = sexMap;
+    this.collapseRefs = collapseRefs;
+    this.visitedInfo = visited; // Store for connection drawing
+    
+    // Group by generation (main individuals only)
+    visited.forEach((info, id) => {
+      const gen = info.generation;
+      if (!this.generationRows.has(gen)) {
+        this.generationRows.set(gen, []);
+      }
+      this.generationRows.get(gen).push({
+        id, 
+        isCollapse: false, 
+        depth: info.depth,
+        relationshipType: info.relationshipType,
+        stepsUp: info.stepsUp,
+        stepsDown: info.stepsDown
+      });
+    });
+    
+    // Add collapse references to their respective generations
+    collapseRefs.forEach((ref, idx) => {
+      const gen = ref.generation;
+      if (!this.generationRows.has(gen)) {
+        this.generationRows.set(gen, []);
+      }
+      this.generationRows.get(gen).push({
+        id: ref.id,
+        isCollapse: true,
+        depth: ref.depth,
+        collapseIdx: idx,
+        originalGen: ref.originalGen,
+        childId: ref.childId,    // For collapse refs from going up
+        parentId: ref.parentId,  // For collapse refs from going down
+        relationshipType: ref.relationshipType
+      });
+    });
+    
+    // Sort each row: green (direct) in center, then blue (blood), then grey (none)
+    // Within each category, sort by id
+    this.generationRows.forEach((nodes) => {
+      // Separate into categories
+      const direct = nodes.filter(n => n.relationshipType === 'direct' || n.relationshipType === 'self');
+      const blood = nodes.filter(n => n.relationshipType === 'blood');
+      const none = nodes.filter(n => n.relationshipType === 'none');
+      
+      // Sort each category by: non-collapse first, then by id
+      const sortCategory = (arr) => arr.sort((a, b) => {
+        if (a.isCollapse !== b.isCollapse) return a.isCollapse ? 1 : -1;
+        return a.id - b.id;
+      });
+      
+      sortCategory(direct);
+      sortCategory(blood);
+      sortCategory(none);
+      
+      // Place direct in center, blood on left, none on right
+      // Split blood and none roughly evenly on both sides for balance
+      const bloodLeft = blood.slice(0, Math.ceil(blood.length / 2));
+      const bloodRight = blood.slice(Math.ceil(blood.length / 2));
+      const noneLeft = none.slice(0, Math.ceil(none.length / 2));
+      const noneRight = none.slice(Math.ceil(none.length / 2));
+      
+      // Final order: noneLeft, bloodLeft, direct, bloodRight, noneRight
+      nodes.length = 0;
+      nodes.push(...noneLeft, ...bloodLeft, ...direct, ...bloodRight, ...noneRight);
+      
+      // Now apply depth-based ordering: lower path lengths closer to center
+      // Use bubble sort to move nodes - lower depth should be closer to center
+      
+      // Find the boundaries of the center (direct/self) section
+      let centerStart = nodes.findIndex(n => n.relationshipType === 'direct' || n.relationshipType === 'self');
+      let centerEnd = -1;
+      for (let i = nodes.length - 1; i >= 0; i--) {
+        if (nodes[i].relationshipType === 'direct' || nodes[i].relationshipType === 'self') {
+          centerEnd = i;
+          break;
+        }
+      }
+      
+      if (centerStart === -1) centerStart = Math.floor(nodes.length / 2);
+      if (centerEnd === -1) centerEnd = centerStart - 1;
+      
+      const maxIterations = 10000; // Safety limit
+      let iterations = 0;
+      
+      // Left side: indices 0 to centerStart-1
+      // We want lower depth at higher indices (closer to center)
+      // Bubble sort: if depth[i] < depth[i+1], swap (move lower depth inward)
+      let swapped = true;
+      while (swapped && iterations < maxIterations) {
+        swapped = false;
+        for (let i = 0; i < centerStart - 1; i++) {
+          const depthI = nodes[i].depth || 0;
+          const depthI1 = nodes[i + 1].depth || 0;
+          if (depthI < depthI1) {
+            // Lower depth is outside of higher depth - swap to move it inward
+            const temp = nodes[i];
+            nodes[i] = nodes[i + 1];
+            nodes[i + 1] = temp;
+            swapped = true;
+            iterations++;
+          }
+        }
+      }
+      
+      // Right side: indices centerEnd+1 to length-1
+      // We want lower depth at lower indices (closer to center)
+      // Bubble sort: if depth[i] > depth[i+1], swap (move lower depth inward)
+      swapped = true;
+      while (swapped && iterations < maxIterations) {
+        swapped = false;
+        for (let i = centerEnd + 1; i < nodes.length - 1; i++) {
+          const depthI = nodes[i].depth || 0;
+          const depthI1 = nodes[i + 1].depth || 0;
+          if (depthI > depthI1) {
+            // Higher depth is inside of lower depth - swap to move lower inward
+            const temp = nodes[i];
+            nodes[i] = nodes[i + 1];
+            nodes[i + 1] = temp;
+            swapped = true;
+            iterations++;
+          }
+        }
+      }
+    });
+    
+    // Clear and rebuild idToPositionKeys map
+    this.idToPositionKeys.clear();
+    
+    // Calculate positions
+    const sortedGens = Array.from(this.generationRows.keys()).sort((a, b) => a - b);
+    
+    sortedGens.forEach(gen => {
+      const nodes = this.generationRows.get(gen);
+      const nodeSize = this.nodeRadius * 2 + this.nodeSpacing;
+      const rowWidth = nodes.length * nodeSize;
+      const startX = -rowWidth / 2 + nodeSize / 2;
+      
+      nodes.forEach((node, idx) => {
+        const posKey = node.isCollapse ? `${node.id}_collapse_${node.collapseIdx}` : node.id;
+        this.positions.set(posKey, {
+          x: startX + idx * nodeSize,
+          y: gen * this.rowHeight,
+          generation: gen,
+          iterationDepth: node.depth,
+          id: node.id,
+          isCollapse: node.isCollapse,
+          originalGen: node.originalGen,
+          childId: node.childId,
+          parentId: node.parentId,
+          relationshipType: node.relationshipType,
+          stepsUp: node.stepsUp,
+          stepsDown: node.stepsDown
+        });
+        
+        // Build idToPositionKeys map
+        if (!this.idToPositionKeys.has(node.id)) {
+          this.idToPositionKeys.set(node.id, []);
+        }
+        this.idToPositionKeys.get(node.id).push(posKey);
+      });
+    });
+  }
+  
+  centerView() {
+    this.offsetX = this.displayWidth / 2;
+    this.offsetY = this.displayHeight / 2;
+    this.scale = 1;
+    
+    if (this.positions.size === 0) return;
+    
+    // Calculate bounds
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    this.positions.forEach(p => {
+      minX = Math.min(minX, p.x - this.nodeRadius);
+      maxX = Math.max(maxX, p.x + this.nodeRadius);
+      minY = Math.min(minY, p.y - this.nodeRadius);
+      maxY = Math.max(maxY, p.y + this.nodeRadius);
+    });
+    
+    const treeWidth = maxX - minX + 80;
+    const treeHeight = maxY - minY + 80;
+    
+    // Fit to view
+    const scaleX = this.displayWidth / treeWidth;
+    const scaleY = this.displayHeight / treeHeight;
+    this.scale = Math.min(scaleX, scaleY, 1.5) * 0.9;
+    
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    this.offsetX = this.displayWidth / 2 - centerX * this.scale;
+    this.offsetY = this.displayHeight / 2 - centerY * this.scale;
+  }
+  
+  focusOnNode(id) {
+    // Find the primary (non-collapse) position for this id
+    let pos = this.positions.get(id);
+    
+    // If not found by direct id, search through positions
+    if (!pos) {
+      for (const [key, p] of this.positions) {
+        if (p.id === id && !p.isCollapse) {
+          pos = p;
+          break;
+        }
+      }
+    }
+    
+    if (!pos) return false;
+    
+    this.highlightedNode = id;
+    this.offsetX = this.displayWidth / 2 - pos.x * this.scale;
+    this.offsetY = this.displayHeight / 2 - pos.y * this.scale;
+    this.render();
+    return true;
+  }
+  
+  worldToScreen(x, y) {
+    return {
+      x: x * this.scale + this.offsetX,
+      y: y * this.scale + this.offsetY
+    };
+  }
+  
+  screenToWorld(x, y) {
+    return {
+      x: (x - this.offsetX) / this.scale,
+      y: (y - this.offsetY) / this.scale
+    };
+  }
+  
+  checkHover(e) {
+    if (!this.data) return;
+    
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const world = this.screenToWorld(screenX, screenY);
+    
+    let found = null;
+    let minDist = this.nodeRadius * 1.5;
+    
+    this.positions.forEach((pos, posKey) => {
+      const dx = world.x - pos.x;
+      const dy = world.y - pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) {
+        minDist = dist;
+        found = posKey;
+      }
+    });
+    
+    if (found !== this.hoveredNode) {
+      this.hoveredNode = found;
+      this.render();
+    }
+    
+    this.updateTooltip(e, found);
+  }
+  
+  updateTooltip(e, posKey) {
+    const tooltip = document.getElementById('tooltip');
+    
+    if (posKey === null) {
+      tooltip.style.display = 'none';
+      return;
+    }
+    
+    const pos = this.positions.get(posKey);
+    if (!pos) {
+      tooltip.style.display = 'none';
+      return;
+    }
+    
+    const id = pos.id;
+    
+    // Find parents
+    const parents = [...new Set(
+      this.data.parentChildRelations
+        .filter(r => r.child === id)
+        .map(r => r.parent)
+    )];
+    
+    // Find children
+    const children = [...new Set(
+      this.data.parentChildRelations
+        .filter(r => r.parent === id)
+        .map(r => r.child)
+    )];
+    
+    // Find partners
+    const partners = new Set();
+    this.data.couples.forEach(c => {
+      if (c.p1 === id) partners.add(c.p2);
+      if (c.p2 === id) partners.add(c.p1);
+    });
+    
+    const genLabel = pos.generation === 0 ? 'Self (0)' : 
+                     (pos.generation > 0 ? `+${pos.generation}` : `${pos.generation}`);
+    
+    const depthLabel = pos.iterationDepth === 0 ? 'Self' : `${pos.iterationDepth} step${pos.iterationDepth > 1 ? 's' : ''} from self`;
+    
+    const sex = this.sexMap?.get(id);
+    const sexLabel = sex === 'M' ? 'Male' : (sex === 'F' ? 'Female' : 'Unknown');
+    
+    // Relationship type label
+    let relTypeLabel = 'Self';
+    let relTypeColor = this.colors.self;
+    if (pos.relationshipType === 'direct') {
+      relTypeLabel = 'Direct Bloodline';
+      relTypeColor = this.colors.directBloodline;
+    } else if (pos.relationshipType === 'blood') {
+      relTypeLabel = 'Blood Relation';
+      relTypeColor = this.colors.bloodRelation;
+    } else if (pos.relationshipType === 'none') {
+      relTypeLabel = 'No Known Blood Relation';
+      relTypeColor = this.colors.noBloodRelation;
+    }
+    
+    let collapseInfo = '';
+    if (pos.isCollapse) {
+      collapseInfo = `<p style="color: #8b949e;"><span class="label">⚠ Shown Elsewhere:</span> Primary at Gen ${pos.originalGen}</p>`;
+    }
+    
+    // Path info
+    let pathInfo = '';
+    if (pos.stepsUp !== undefined && pos.stepsDown !== undefined) {
+      pathInfo = `<p><span class="label">Path:</span> ${pos.stepsUp} up, ${pos.stepsDown} down</p>`;
+    }
+    
+    tooltip.innerHTML = `
+      <h4>Individual #${id}${pos.isCollapse ? ' (reference)' : ''}</h4>
+      ${collapseInfo}
+      <p><span class="label">Sex:</span> ${sexLabel}</p>
+      <p><span class="label">Generation Row:</span> ${genLabel}</p>
+      ${pathInfo}
+      <p><span class="label">Distance:</span> ${depthLabel}</p>
+      <p><span class="label">Relationship:</span> <span style="color: ${relTypeColor};">${relTypeLabel}</span></p>
+      <p><span class="label">Parents:</span> ${parents.length ? parents.map(p => '#' + p).join(', ') : 'Unknown'}</p>
+      <p><span class="label">Children:</span> ${children.length ? children.map(c => '#' + c).join(', ') : 'None recorded'}</p>
+      <p><span class="label">Partners:</span> ${partners.size ? Array.from(partners).map(p => '#' + p).join(', ') : 'None recorded'}</p>
+    `;
+    
+    tooltip.style.display = 'block';
+    
+    // Position tooltip
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let left = e.clientX + 15;
+    let top = e.clientY + 15;
+    
+    if (left + tooltipRect.width > window.innerWidth) {
+      left = e.clientX - tooltipRect.width - 15;
+    }
+    if (top + tooltipRect.height > window.innerHeight) {
+      top = e.clientY - tooltipRect.height - 15;
+    }
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+  }
+  
+  render() {
+    const ctx = this.ctx;
+    const width = this.displayWidth;
+    const height = this.displayHeight;
+    
+    // Clear with gradient
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#0d1117');
+    gradient.addColorStop(0.5, '#161b22');
+    gradient.addColorStop(1, '#21262d');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+    
+    if (!this.data || this.positions.size === 0) return;
+    
+    // Determine which nodes to draw (filter for directOnlyMode)
+    const visiblePositions = new Map();
+    this.positions.forEach((pos, posKey) => {
+      if (this.directOnlyMode) {
+        // Only show direct bloodline and self
+        if (pos.relationshipType === 'direct' || pos.relationshipType === 'self') {
+          visiblePositions.set(posKey, pos);
+        }
+      } else {
+        visiblePositions.set(posKey, pos);
+      }
+    });
+    
+    // Get highlighted ID (from hoveredNode or highlightedNode)
+    let highlightedId = null;
+    if (this.hoveredNode) {
+      const hoveredPos = this.positions.get(this.hoveredNode);
+      if (hoveredPos) highlightedId = hoveredPos.id;
+    }
+    if (this.highlightedNode && !highlightedId) {
+      const highlightedPos = this.positions.get(this.highlightedNode);
+      if (highlightedPos) highlightedId = highlightedPos.id;
+    }
+    
+    // Get all position keys for the highlighted ID
+    const highlightedPosKeys = new Set();
+    if (highlightedId !== null) {
+      const keys = this.idToPositionKeys.get(highlightedId) || [];
+      keys.forEach(k => highlightedPosKeys.add(k));
+    }
+    
+    // Get all IDs connected to highlighted ID (for edge highlighting)
+    const connectedIds = new Set();
+    if (highlightedId !== null) {
+      // Parents and children
+      this.data.parentChildRelations.forEach(rel => {
+        if (rel.parent === highlightedId) connectedIds.add(rel.child);
+        if (rel.child === highlightedId) connectedIds.add(rel.parent);
+      });
+      // Partners
+      this.data.couples.forEach(c => {
+        if (c.p1 === highlightedId) connectedIds.add(c.p2);
+        if (c.p2 === highlightedId) connectedIds.add(c.p1);
+      });
+    }
+    
+    // Reset drawn edge counts
+    this.drawnParentChildEdges = [];
+    this.drawnCoupleEdges = [];
+    
+    // Draw generation guidelines
+    const sortedGens = Array.from(this.generationRows.keys()).sort((a, b) => a - b);
+    ctx.strokeStyle = this.colors.genLine;
+    ctx.lineWidth = 1;
+    sortedGens.forEach(gen => {
+      const screenY = gen * this.rowHeight * this.scale + this.offsetY;
+      ctx.beginPath();
+      ctx.moveTo(0, screenY);
+      ctx.lineTo(width, screenY);
+      ctx.stroke();
+    });
+    
+    // Draw generation labels
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '10px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    sortedGens.forEach(gen => {
+      const screenY = gen * this.rowHeight * this.scale + this.offsetY;
+      const label = gen === 0 ? 'Self' : (gen > 0 ? `+${gen}` : `${gen}`);
+      // Count visible nodes in this generation
+      let count = 0;
+      this.generationRows.get(gen)?.forEach(node => {
+        const posKey = node.isCollapse ? `${node.id}_collapse_${node.collapseIdx}` : node.id;
+        if (visiblePositions.has(posKey)) count++;
+      });
+      ctx.fillText(`${label} (${count})`, 8, screenY);
+    });
+    
+    // Draw couple connections (dashed) - only for non-collapse visible nodes
+    ctx.setLineDash([5, 3]);
+    ctx.lineWidth = 1.5;
+    this.data.couples.forEach(couple => {
+      const pos1 = visiblePositions.get(couple.p1);
+      const pos2 = visiblePositions.get(couple.p2);
+      if (!pos1 || !pos2) return;
+      // Skip if either is a collapse reference
+      if (pos1.isCollapse || pos2.isCollapse) return;
+      
+      // Check if this edge should be highlighted
+      const isEdgeHighlighted = highlightedId !== null && 
+        (couple.p1 === highlightedId || couple.p2 === highlightedId);
+      
+      const screen1 = this.worldToScreen(pos1.x, pos1.y);
+      const screen2 = this.worldToScreen(pos2.x, pos2.y);
+      
+      ctx.strokeStyle = isEdgeHighlighted ? '#ffa657' : this.colors.couple;
+      ctx.globalAlpha = isEdgeHighlighted ? 1 : 0.6;
+      ctx.lineWidth = isEdgeHighlighted ? 2.5 : 1.5;
+      
+      ctx.beginPath();
+      ctx.moveTo(screen1.x, screen1.y);
+      ctx.lineTo(screen2.x, screen2.y);
+      ctx.stroke();
+      
+      this.drawnCoupleEdges.push({p1: couple.p1, p2: couple.p2});
+    });
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    
+    // Draw parent-child connections
+    ctx.lineWidth = 1;
+    
+    // Draw connections for regular (non-collapse) visible nodes
+    this.data.parentChildRelations.forEach(rel => {
+      const parentPos = visiblePositions.get(rel.parent);
+      const childPos = visiblePositions.get(rel.child);
+      
+      // Only draw if both are regular (non-collapse) nodes
+      if (!parentPos || !childPos) return;
+      if (parentPos.isCollapse || childPos.isCollapse) return;
+      
+      // Check if this edge should be highlighted
+      const isEdgeHighlighted = highlightedId !== null && 
+        (rel.parent === highlightedId || rel.child === highlightedId);
+      
+      const p = this.worldToScreen(parentPos.x, parentPos.y);
+      const c = this.worldToScreen(childPos.x, childPos.y);
+      const r = this.nodeRadius * this.scale;
+      
+      // Curved bezier connection
+      const midY = (p.y + c.y) / 2;
+      
+      ctx.strokeStyle = isEdgeHighlighted ? '#ffa657' : this.colors.parentChild;
+      ctx.lineWidth = isEdgeHighlighted ? 2 : 1;
+      
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y + r);
+      ctx.bezierCurveTo(
+        p.x, midY,
+        c.x, midY,
+        c.x, c.y - r
+      );
+      ctx.stroke();
+      
+      this.drawnParentChildEdges.push({parent: rel.parent, child: rel.child});
+    });
+    
+    // Draw connections for collapse references
+    ctx.setLineDash([3, 3]);
+    visiblePositions.forEach((pos, posKey) => {
+      if (!pos.isCollapse) return;
+      
+      const collapseScreen = this.worldToScreen(pos.x, pos.y);
+      const r = this.nodeRadius * this.scale;
+      
+      // Check if this collapse ref is highlighted
+      const isHighlighted = highlightedId !== null && pos.id === highlightedId;
+      
+      // If this collapse ref has a childId, draw line down to the child
+      if (pos.childId !== undefined) {
+        const childPos = visiblePositions.get(pos.childId);
+        if (childPos && !childPos.isCollapse) {
+          const isEdgeHighlighted = isHighlighted || (highlightedId !== null && pos.childId === highlightedId);
+          
+          const c = this.worldToScreen(childPos.x, childPos.y);
+          const midY = (collapseScreen.y + c.y) / 2;
+          
+          ctx.strokeStyle = isEdgeHighlighted ? '#ffa657' : 'rgba(139, 148, 158, 0.4)';
+          ctx.lineWidth = isEdgeHighlighted ? 2 : 1;
+          
+          ctx.beginPath();
+          ctx.moveTo(collapseScreen.x, collapseScreen.y + r);
+          ctx.bezierCurveTo(
+            collapseScreen.x, midY,
+            c.x, midY,
+            c.x, c.y - r
+          );
+          ctx.stroke();
+        }
+      }
+      
+      // If this collapse ref has a parentId, draw line up to the parent
+      if (pos.parentId !== undefined) {
+        const parentPos = visiblePositions.get(pos.parentId);
+        if (parentPos && !parentPos.isCollapse) {
+          const isEdgeHighlighted = isHighlighted || (highlightedId !== null && pos.parentId === highlightedId);
+          
+          const p = this.worldToScreen(parentPos.x, parentPos.y);
+          const midY = (p.y + collapseScreen.y) / 2;
+          
+          ctx.strokeStyle = isEdgeHighlighted ? '#ffa657' : 'rgba(139, 148, 158, 0.4)';
+          ctx.lineWidth = isEdgeHighlighted ? 2 : 1;
+          
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y + r);
+          ctx.bezierCurveTo(
+            p.x, midY,
+            collapseScreen.x, midY,
+            collapseScreen.x, collapseScreen.y - r
+          );
+          ctx.stroke();
+        }
+      }
+    });
+    ctx.setLineDash([]);
+    
+    // Draw nodes
+    visiblePositions.forEach((pos, posKey) => {
+      const screen = this.worldToScreen(pos.x, pos.y);
+      const r = this.nodeRadius * this.scale;
+      const id = pos.id;
+      
+      // Check if this node is highlighted (either directly or via same ID)
+      const isHovered = highlightedPosKeys.has(posKey) || id === highlightedId;
+      const isHighlighted = posKey === this.highlightedNode || id === this.highlightedNode;
+      const isAnyHighlight = isHovered || isHighlighted;
+      
+      // Determine node color based on relationship type
+      let nodeColor;
+      
+      if (isAnyHighlight) {
+        nodeColor = this.colors.hovered;
+      } else if (id === this.data.selfId && !pos.isCollapse) {
+        nodeColor = this.colors.self;
+      } else if (pos.relationshipType === 'direct') {
+        nodeColor = this.colors.directBloodline;
+      } else if (pos.relationshipType === 'blood') {
+        // Gradation based on iteration depth: 2 (pure blue) to 6+ (greyish-blue)
+        const depth = pos.iterationDepth || 2;
+        const t = Math.min(1, Math.max(0, (depth - 2) / 4)); // 0 at depth 2, 1 at depth 6+
+        // Interpolate from #58a6ff (blue) to #6a7a8a (greyish-blue)
+        const r1 = 0x58, g1 = 0xa6, b1 = 0xff;
+        const r2 = 0x6a, g2 = 0x7a, b2 = 0x8a;
+        const rr = Math.round(r1 + (r2 - r1) * t);
+        const gg = Math.round(g1 + (g2 - g1) * t);
+        const bb = Math.round(b1 + (b2 - b1) * t);
+        nodeColor = `rgb(${rr}, ${gg}, ${bb})`;
+      } else if (pos.relationshipType === 'self' && !pos.isCollapse) {
+        nodeColor = this.colors.self;
+      } else {
+        nodeColor = this.colors.noBloodRelation;
+      }
+      
+      // Get sex for shape
+      const sex = this.sexMap?.get(id); // 'M', 'F', or undefined
+      
+      // For collapse refs, draw outline only (no fill, no shadow)
+      const isOutlineOnly = pos.isCollapse;
+      
+      if (!isOutlineOnly) {
+        // Draw node shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        if (sex === 'M') {
+          ctx.fillRect(screen.x - r + 2, screen.y - r + 2, r * 2, r * 2);
+        } else if (sex === 'F') {
+          ctx.beginPath();
+          ctx.arc(screen.x + 2, screen.y + 2, r, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          this.drawRoundedRect(ctx, screen.x - r + 2, screen.y - r + 2, r * 2, r * 2, r * 0.4);
+          ctx.fill();
+        }
+      }
+      
+      // Draw node shape
+      const borderColor = isAnyHighlight ? '#fff' : (isOutlineOnly ? nodeColor : this.colors.nodeBorder);
+      const borderWidth = isAnyHighlight ? 2 : (isOutlineOnly ? 2 : 1);
+      
+      if (sex === 'M') {
+        // Square for male
+        if (!isOutlineOnly) {
+          ctx.fillStyle = nodeColor;
+          ctx.fillRect(screen.x - r, screen.y - r, r * 2, r * 2);
+        }
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(screen.x - r, screen.y - r, r * 2, r * 2);
+      } else if (sex === 'F') {
+        // Circle for female
+        ctx.beginPath();
+        ctx.arc(screen.x, screen.y, r, 0, Math.PI * 2);
+        if (!isOutlineOnly) {
+          ctx.fillStyle = nodeColor;
+          ctx.fill();
+        }
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth;
+        ctx.stroke();
+      } else {
+        // Rounded square for unknown
+        this.drawRoundedRect(ctx, screen.x - r, screen.y - r, r * 2, r * 2, r * 0.4);
+        if (!isOutlineOnly) {
+          ctx.fillStyle = nodeColor;
+          ctx.fill();
+        }
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth;
+        ctx.stroke();
+      }
+      
+      // Draw ID text if zoomed in enough
+      if (r > 6) {
+        ctx.fillStyle = isOutlineOnly ? nodeColor : this.colors.text;
+        const fontSize = Math.max(7, Math.min(11, r * 0.7));
+        ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(id.toString(), screen.x, screen.y);
+      }
+    });
+  }
+  
+  drawRoundedRect(ctx, x, y, w, h, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+  
+  zoomIn() {
+    this.scale = Math.min(4, this.scale * 1.25);
+    this.render();
+  }
+  
+  zoomOut() {
+    this.scale = Math.max(0.05, this.scale / 1.25);
+    this.render();
+  }
+  
+  resetView() {
+    this.highlightedNode = null;
+    this.centerView();
+    this.render();
+  }
+  
+  setDirectOnlyMode(enabled) {
+    this.directOnlyMode = enabled;
+    this.render();
+  }
+  
+  getDrawnEdgeCounts() {
+    return {
+      parentChild: this.drawnParentChildEdges.length,
+      couples: this.drawnCoupleEdges.length
+    };
+  }
+  
+  getVisibleNodeCount() {
+    let count = 0;
+    this.positions.forEach((pos, posKey) => {
+      if (this.directOnlyMode) {
+        if (pos.relationshipType === 'direct' || pos.relationshipType === 'self') {
+          count++;
+        }
+      } else {
+        count++;
+      }
+    });
+    return count;
+  }
+  
+  getInbreedingStats() {
+    if (!this.positions || this.positions.size === 0) return null;
+    
+    // ============================================
+    // PROBAND INBREEDING COEFFICIENT
+    // ============================================
+    // Based on direct ancestors only (pure ascent path, generation < 0)
+    // 
+    // "Ancestor slots" = number of positions filled by direct ancestors
+    //   This includes collapse refs (same ancestor appearing in multiple slots)
+    // "Distinct ancestors" = number of unique individuals in those slots
+    //
+    // In a fully outbred pedigree: distinct == slots (no one appears twice)
+    // With inbreeding: distinct < slots (some ancestors fill multiple slots)
+    //
+    // Inbreeding coefficient = 1 - (distinct / slots)
+    //   0.0 = fully outbred (all ancestors distinct)
+    //   0.5 = half of ancestor slots are duplicates (extreme inbreeding)
+    
+    let ancestorSlots = 0;
+    const ancestorIds = new Set();
+    
+    this.positions.forEach((pos, posKey) => {
+      // Direct bloodline ancestors: generation < 0 (above proband)
+      // Must be 'direct' relationship (pure ascent, no descent in path)
+      if (pos.generation < 0 && pos.relationshipType === 'direct') {
+        ancestorSlots++;
+        ancestorIds.add(pos.id);
+      }
+    });
+    
+    const probandInbreeding = ancestorSlots > 0 
+      ? 1 - (ancestorIds.size / ancestorSlots)
+      : 0;
+    
+    // ============================================
+    // TREE-WIDE PEDIGREE COLLAPSE RATE
+    // ============================================
+    // Measures how much "compression" exists in the visible tree
+    // due to individuals appearing in multiple generational positions
+    //
+    // Total positions = all nodes drawn (including collapse refs)
+    // Distinct individuals = unique IDs
+    //
+    // Collapse rate = 1 - (distinct / total)
+    //   0.0 = no collapse (everyone appears exactly once)
+    //   Higher = more individuals appearing multiple times
+    //
+    // Note: This includes ALL relationships (blood, non-blood, etc.)
+    // so it measures overall graph compression, not just pedigree collapse
+    
+    const totalPositions = this.positions.size;
+    const distinctIds = new Set();
+    this.positions.forEach(pos => distinctIds.add(pos.id));
+    
+    const treeCollapseRate = totalPositions > 0
+      ? 1 - (distinctIds.size / totalPositions)
+      : 0;
+    
+    return {
+      // Proband-specific
+      ancestorSlots,
+      distinctAncestors: ancestorIds.size,
+      probandInbreeding,
+      
+      // Tree-wide
+      totalPositions,
+      distinctIds: distinctIds.size,
+      treeCollapseRate
+    };
+  }
+}
+
+// ============================================
+// APPLICATION SETUP
+// ============================================
+
+const parser = new GenealogyParser();
+const canvas = document.getElementById('treeCanvas');
+const renderer = new TreeRenderer(canvas);
+
+// File input
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  try {
+    const text = await file.text();
+    const parsed = parser.parseFile(text);
+    renderer.setData(parsed);
+    
+    // Store parsed data for stats reference
+    window.parsedData = parsed;
+    
+    // Display warnings if any sex assignment conflicts
+    if (parsed.sexWarnings && parsed.sexWarnings.length > 0) {
+      console.warn('SEX CONFLICTS:', parsed.sexWarnings);
+      const warningMsg = parsed.sexWarnings.slice(0, 10).map(w => 
+        `ID ${w.id}: was ${w.currentSex}, but appears as ${w.newRole} of ${w.childId}`
+      ).join('\n');
+      const moreMsg = parsed.sexWarnings.length > 10 
+        ? `\n...and ${parsed.sexWarnings.length - 10} more conflicts` 
+        : '';
+      alert('Warning: Sex assignment conflicts detected!\n\n' + warningMsg + moreMsg);
+    }
+    
+    // Update stats
+    updateStats();
+    
+    document.getElementById('instructions').style.display = 'none';
+    
+  } catch (err) {
+    alert('Error parsing file:\n' + err.message);
+    console.error(err);
+  }
+});
+
+function updateStats() {
+  if (!window.parsedData || !renderer.positions) return;
+  
+  const parsed = window.parsedData;
+  
+  // Wait for render to complete to get accurate counts
+  setTimeout(() => {
+    const edgeCounts = renderer.getDrawnEdgeCounts();
+    const visibleNodes = renderer.getVisibleNodeCount();
+    const collapseCount = renderer.collapseRefs ? renderer.collapseRefs.length : 0;
+    const inbreedingStats = renderer.getInbreedingStats();
+    
+    // Show original proband if different from current
+    const originalInfo = (parsed.originalSelfId && parsed.originalSelfId !== parsed.selfId) 
+      ? `<div class="stat"><span class="stat-label">Original:</span> <span class="stat-value">#${parsed.originalSelfId}</span></div>`
+      : '';
+    
+    // Format inbreeding coefficients
+    let probandInbreedingStr = 'N/A';
+    let treeCollapseStr = 'N/A';
+    let ancestorInfo = '';
+    
+    if (inbreedingStats) {
+      if (inbreedingStats.ancestorSlots > 0) {
+        probandInbreedingStr = (inbreedingStats.probandInbreeding * 100).toFixed(1) + '%';
+        ancestorInfo = ` (${inbreedingStats.distinctAncestors}/${inbreedingStats.ancestorSlots} ancestors)`;
+      } else {
+        probandInbreedingStr = 'N/A (no ancestors visible)';
+      }
+      
+      if (inbreedingStats.totalPositions > 0) {
+        treeCollapseStr = (inbreedingStats.treeCollapseRate * 100).toFixed(1) + '%';
+      }
+    }
+    
+    document.getElementById('stats').innerHTML = `
+      <div class="stat"><span class="stat-label">Self:</span> <span class="stat-value">#${parsed.selfId}</span></div>
+      ${originalInfo}
+      <div class="stat"><span class="stat-label">Visible:</span> <span class="stat-value">${visibleNodes} nodes, ${edgeCounts.parentChild} edges</span></div>
+      <div class="stat"><span class="stat-label">Collapse refs:</span> <span class="stat-value">${collapseCount}</span></div>
+      <div class="stat"><span class="stat-label">Proband inbreeding:</span> <span class="stat-value">${probandInbreedingStr}</span></div>
+      <div class="stat"><span class="stat-label">Tree collapse:</span> <span class="stat-value">${treeCollapseStr}</span></div>
+    `;
+  }, 50);
+}
+
+// Depth slider
+document.getElementById('depthSlider').addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  document.getElementById('depthVal').textContent = val;
+  renderer.setIterationDepth(val);
+  
+  // Update stats
+  updateStats();
+});
+
+// Direct only toggle
+document.getElementById('directOnlyToggle').addEventListener('change', (e) => {
+  renderer.setDirectOnlyMode(e.target.checked);
+  
+  // Update stats
+  updateStats();
+});
+
+// Search
+document.getElementById('searchBtn').addEventListener('click', () => {
+  const id = parseInt(document.getElementById('searchId').value);
+  if (!isNaN(id)) {
+    if (!renderer.focusOnNode(id)) {
+      alert(`Individual #${id} not found in visible generations`);
+    }
+  }
+});
+
+document.getElementById('searchId').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    document.getElementById('searchBtn').click();
+  }
+});
+
+// Zoom controls
+document.getElementById('zoomIn').addEventListener('click', () => renderer.zoomIn());
+document.getElementById('zoomOut').addEventListener('click', () => renderer.zoomOut());
+document.getElementById('zoomReset').addEventListener('click', () => renderer.resetView());
+
+// Reset to original proband
+document.getElementById('resetProband').addEventListener('click', () => {
+  if (renderer.resetToOriginalProband()) {
+    updateStats();
+  }
+});
+</script>
+</body>
+</html>

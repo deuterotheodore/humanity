@@ -1,0 +1,4007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>agent-model simulation client</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            display: flex;
+            height: 100vh;
+        }
+        #sidebar {
+            width: 300px;
+            background: #16213e;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+        h1 {
+            font-size: 1.4em;
+            color: #0f4c75;
+            border-bottom: 2px solid #0f4c75;
+            padding-bottom: 10px;
+        }
+        .control-group {
+            background: #1a1a2e;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .control-group h3 {
+            font-size: 0.9em;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        button {
+            background: #0f4c75;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        button:hover { background: #1a6fa8; }
+        button:disabled { background: #444; cursor: not-allowed; }
+        button.danger { background: #c23616; }
+        button.danger:hover { background: #e84118; }
+        button.success { background: #27ae60; }
+        .button-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+        .stat-value {
+            font-weight: bold;
+            font-family: monospace;
+        }
+        .stat-value.good { color: #4CAF50; }
+        .stat-value.warn { color: #ff9800; }
+        .stat-value.bad { color: #f44336; }
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            position: relative;
+        }
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: #0d0d1a;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #threejs-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: grab;
+        }
+        #threejs-canvas:active {
+            cursor: grabbing;
+        }
+        
+        /* Floating minimap */
+        #minimap-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            background: rgba(13, 13, 26, 0.9);
+            border: 2px solid #0f4c75;
+            border-radius: 5px;
+            overflow: hidden;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        #minimap-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+        
+        /* Inspect Agent Popup */
+        #inspect-popup {
+            display: none;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 280px;
+            background: rgba(22, 33, 62, 0.95);
+            border: 2px solid #0f4c75;
+            border-radius: 8px;
+            z-index: 200;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            font-size: 0.85em;
+        }
+        #inspect-popup.visible {
+            display: block;
+        }
+        #inspect-popup .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: #0f4c75;
+            border-radius: 6px 6px 0 0;
+        }
+        #inspect-popup .popup-header h4 {
+            margin: 0;
+            font-size: 1em;
+        }
+        #inspect-popup .popup-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.4em;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        #inspect-popup .popup-close:hover {
+            opacity: 1;
+            background: none;
+        }
+        #inspect-popup .popup-content {
+            padding: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        #inspect-popup .agent-row {
+            display: flex;
+            align-items: flex-start;
+            padding: 6px 8px;
+            margin: 2px 0;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            gap: 8px;
+        }
+
+        #inspect-popup .agent-row.selected {
+            background: rgba(255, 255, 0, 0.15);
+            border: 1px solid rgba(255, 255, 0, 0.3);
+        }
+        #inspect-popup .agent-icon {
+            font-size: 1.5em;
+        }
+        #inspect-popup .agent-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 40px;
+        }
+        #inspect-popup .agent-id {
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        #inspect-popup .agent-info {
+            flex: 1;
+            font-family: monospace;
+        }
+        #inspect-popup .agent-internal-state {
+            color: #888;
+        }
+        #inspect-popup .empty-cell {
+            color: #666;
+            font-style: italic;
+            padding: 8px 0;
+        }
+        #inspect-popup .loading {
+            color: #888;
+            font-style: italic;
+            padding: 8px 0;
+        }
+        
+        /* Track Agent Popup */
+        #track-agent {
+            display: none;
+            position: absolute;
+            top: 20px;
+            left: 320px;
+            width: 280px;
+            background: rgba(22, 33, 62, 0.95);
+            border: 2px solid #27ae60;
+            border-radius: 8px;
+            z-index: 200;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            font-size: 0.85em;
+        }
+        #track-agent.visible {
+            display: block;
+        }
+        #track-agent .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: #27ae60;
+            border-radius: 6px 6px 0 0;
+        }
+        #track-agent .popup-header h4 {
+            margin: 0;
+            font-size: 1em;
+        }
+        #track-agent .popup-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.4em;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        #track-agent .popup-close:hover {
+            opacity: 1;
+            background: none;
+        }
+        #track-agent .popup-content {
+            padding: 12px;
+        }
+        #track-agent .agent-field {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            gap: 8px;
+        }
+        #track-agent .agent-field:last-child {
+            border-bottom: none;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        #track-agent .field-name {
+            color: #888;
+            flex-shrink: 0;
+        }
+        #track-agent .field-value {
+            font-family: monospace;
+            font-weight: bold;
+        }
+        #track-agent .field-value.agent-internal-state {
+            font-weight: normal;
+            color: #aaa;
+            word-break: break-word;
+        }
+        #track-agent .agent-dead {
+            color: #f44336;
+            font-style: italic;
+            padding: 8px 0;
+            text-align: center;
+        }
+        
+        /* Make agent rows in inspect-popup clickable */
+        #inspect-popup .agent-row {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #inspect-popup .agent-row:hover {
+            background: rgba(39, 174, 96, 0.2);
+        }
+        
+        /* Population Graph */
+        #population-graph {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            height: 200px;
+            background: rgba(22, 33, 62, 0.95);
+            border: 2px solid #0f4c75;
+            border-radius: 8px;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            user-select: none;
+        }
+        #population-graph .graph-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: #0f4c75;
+            border-radius: 6px 6px 0 0;
+            font-size: 0.85em;
+        }
+        #population-graph .graph-header h4 {
+            margin: 0;
+            font-size: 0.95em;
+        }
+        #population-graph .graph-legend {
+            display: flex;
+            gap: 12px;
+            font-size: 0.8em;
+        }
+        #population-graph .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        #population-graph .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        #population-graph .legend-dot.m { background: #4C50AF; }
+        #population-graph .legend-dot.f { background: #f44336; }
+        #population-graph canvas {
+            width: 100%;
+            height: calc(100% - 32px);
+            display: block;
+        }
+        
+        #connection-status {
+            font-size: 0.75em;
+            padding: 4px 14px;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+        #connection-status.connected { background: #27ae60; color: white; }
+        #connection-status.disconnected { background: #c0392b; color: white; }
+        #connection-status.connecting { background: #f39c12; color: white; }        
+        #log {
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.75em;
+            background: #0d0d1a;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .log-entry { color: #666; }
+        .log-entry.info { color: #4CAF50; }
+        .log-entry.warn { color: #ff9800; }
+        .log-entry.error { color: #f44336; }
+        .log-entry.ws { color: #9b59b6; }
+        .slider-group { margin: 8px 0; }
+        .slider-group label { display: block; font-size: 0.85em; margin-bottom: 4px; }
+        .slider-group input[type="range"] { width: 100%; }
+        select, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        select:focus, input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #0f4c75;
+        }
+        .param-group { margin-top: 8px; }
+        .param-group label { display: block; font-size: 0.8em; color: #888; margin-bottom: 4px; }
+        .controls-hint {
+            font-size: 0.7em;
+            color: #666;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h1>τὰ ἀνθρώπινα</h1>
+        
+        <div class="control-group">
+            <h3>Simulation</h3>
+
+            <div class="button-row" style="margin-top: 8px;">
+                <button id="btn-init">Initialize</button>
+                <button id="btn-start">Start</button>
+                <button id="btn-stop" disabled>Stop</button>
+            </div>
+            <div class="button-row" style="margin-top: 8px;">
+                <button id="btn-step">Step</button>
+                <button id="btn-step10">Step 10</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Server Statistics</h3>
+            <div class="stat">
+                <span>Server Tick:</span>
+                <span id="stat-server-tick" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span>Server M:</span>
+                <span id="stat-m" class="stat-value m">0</span>
+            </div>
+            <div class="stat">
+                <span>Server F:</span>
+                <span id="stat-f" class="stat-value f">0</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>Client Statistics</h3>
+            <div class="stat">
+                <span>Local Agents:</span>
+                <span id="stat-local" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span>Last Update Tick:</span>
+                <span id="stat-last-tick" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span>Updates/sec:</span>
+                <span id="stat-ups" class="stat-value">-</span>
+            </div>
+            <div class="stat">
+                <span>Agents/sec:</span>
+                <span id="stat-aps" class="stat-value">-</span>
+            </div>
+            <div class="stat">
+                <span>Render FPS:</span>
+                <span id="stat-fps" class="stat-value">-</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Edit Parameters</h3>
+            <div class="param-group">
+                <label>Parameter:</label>
+                <select id="param-select">
+                    <option value="">-- Initialize first --</option>
+                </select>
+            </div>
+            <div class="param-group">
+                <label>Value:</label>
+                <input type="text" id="param-value" placeholder="Select a parameter">
+            </div>
+            <div class="button-row">
+                <button id="btn-param-set">Set Value</button>
+                <button id="btn-param-refresh">Refresh</button>
+            </div>
+            <div class="stat" style="margin-top: 8px;">
+                <span>Status:</span>
+                <span id="param-status" class="stat-value">-</span>
+            </div>
+        </div>
+ 
+        <div class="control-group">
+            <h3>Viewport</h3>
+            <div class="stat">
+                <span>Center:</span>
+                <span id="stat-viewport-center" class="stat-value">-</span>
+            </div>
+            <div class="stat">
+                <span>Zoom:</span>
+                <span id="stat-viewport-zoom" class="stat-value">-</span>
+            </div>
+            <div class="stat">
+                <span>Agents:</span>
+                <span id="stat-viewport-agents" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span>Poll RTT:</span>
+                <span id="stat-viewport-rtt" class="stat-value">-</span>
+            </div>
+            <div class="slider-group">
+                <label>Poll Rate: <span id="poll-rate-value">20</span> fps</label>
+                <input type="range" id="poll-rate" min="1" max="60" value="20">
+            </div>
+            <div class="controls-hint">
+                WASD or drag to pan • Wheel or +/- to zoom
+            </div>
+            <h3>Websocket Stream</h3>
+            <div id="connection-status" class="disconnected">Disconnected</div>
+            <div class="button-row" style="margin-top: 8px;">
+                <button id="btn-connect" class="success">Connect</button>
+                <button id="btn-disconnect" class="danger" disabled>Disconnect</button>
+            </div>
+            <div class="slider-group">
+                <label>Interval: <span id="rate-interval-value">10</span>ms</label>
+                <input type="range" id="rate-interval" min="5" max="100" value="10">
+            </div>
+            <div class="slider-group">
+                <label>Chunk size: <span id="rate-chunk-value">200</span></label>
+                <input type="range" id="rate-chunk" min="10" max="500" value="200" step="10">
+            </div>
+            <div class="button-row">
+                <button id="btn-rate-apply">Apply Rate</button>
+            </div>
+            <div class="stat" style="margin-top: 8px;">
+                <span>Agents/sec:</span>
+                <span id="stat-theoretical-rate" class="stat-value">20000</span>
+            </div>
+        </div>        
+               
+        <div id="log"></div>
+    </div>
+    
+    <div id="main">
+        <div id="canvas-container">
+            <canvas id="threejs-canvas"></canvas>
+        </div>
+        
+        <!-- Floating minimap -->
+        <div id="minimap-container">
+            <canvas id="minimap-canvas"></canvas>
+        </div>
+        
+        <!-- Population Graph -->
+        <div id="population-graph">
+            <div class="graph-header">
+                <h4>Population</h4>
+                <div class="graph-legend">
+                    <div class="legend-item">
+                        <div class="legend-dot m"></div>
+                        <span>m</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot f"></div>
+                        <span>f</span>
+                    </div>
+                </div>
+            </div>
+            <canvas id="graph-canvas"></canvas>
+        </div>
+        
+        <!-- Inspect Agent Popup -->
+        <div id="inspect-popup">
+            <div class="popup-header">
+                <h4>Cell <span class="cell-coords"></span> <span class="cell-tick"></span></h4>
+                <button class="popup-close" onclick="closeInspectPopup()">&times;</button>
+            </div>
+            <div class="popup-content">
+                <!-- Agent list will be populated dynamically -->
+            </div>
+        </div>
+        
+        <div id="track-agent">
+            <div class="popup-header">
+                <h4><span class="track-title"></span></h4>
+                <button class="popup-close" onclick="closeTrackAgent()">&times;</button>
+            </div>
+            <div class="popup-content">
+                <!-- Agent details will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ============================================================
+    // Configuration
+    // ============================================================
+    const HTTP_URL = 'http://localhost:5000';
+    const WS_URL = 'ws://localhost:8765';
+
+    const TWOPI = Math.PI*2;
+    const DEG_PER_RAD = 180/Math.PI;
+    const NEG_HALF_PI = -Math.PI/2;
+    const SIXTY_DEG = Math.PI/3;
+
+    const ORTHOGRAPHIC = false;
+    const RENDER_NONVIEWPORT = false;
+    const SYLLABIC = true;
+    const SYLLABLES = generateSyllables();
+    const SYL_BASE = SYLLABLES.length;
+    if(SYLLABIC){
+      console.log(SYL_BASE + "(" + toSyllabic(SYL_BASE) + ") syllables");
+    }
+    
+    const MALE_ICON = '♂'; // ♂ ♂️
+    const FEMALE_ICON = '♀'; // ♀ ♀️
+    
+    const INFANT_ICON = '👶🏻'; //👶 👶🏻 infant
+    const BOY_ICON = '👦🏻'; //👦 👦🏻 boy
+    const GIRL_ICON = '👧🏻'; //👧 👧🏻 girl
+    const MAN_ICON = '🧔🏻‍♂️'; //🧔🏻‍♂️ 👨🧔🧔‍♂️ man
+    const WOMAN_ICON = '👩🏻'; //👩 👩🏻 woman
+    const GRAMPS_ICON = '👴🏻'; //👴 👴🏻 old man 
+    const GRANNY_ICON = '👵🏻'; //👵 👵🏻 old woman
+    const SKULL_ICON = '💀'; //💀☠️
+    const EMOJIS = [ // id = min(4,int(5*trust))+5*min(4,int(5*hap))
+    '😞','😟','🙁','😖','😶',
+    '😒','😔','🙁','😕','🥲',
+    '😳','🥺','😐','🫤','🙂',
+    '🥴','😅','🙂','😄','😊',
+    '😬','😃','😄','😊','😌'
+    ];
+
+    const INFANCY = 3;
+    const CHILDHOOD = 7;
+    const ADOLESCENCE = 14;
+    const ADULTHOOD = 21;
+    const SENESCENCE = 60; 
+
+    // ============================================================
+    // State Management
+    // ============================================================
+    
+    // Agent store: id -> {id, type, x, y, energy}
+    const agentStore = new Map();
+    
+    // World info
+    let worldWidth = 10; // unused except for grid initialization? formerly posted by initWorld
+    let worldHeight = 10;
+    let lastUpdateTick = 0;
+    let serverTick = 0;
+  
+    // Camera state (floating point for smooth movement)
+    let cameraX = 5;      // world X coordinate of camera center
+    let cameraY = 5;      // world Y coordinate of camera center
+    let cameraZoom = 5;   // number of cells visible (vertical extent)
+    let aspect = 1;
+    
+    // Zoom limits
+    const MIN_ZOOM = 0.5;    // min cells visible (max zoom in)
+    const MAX_ZOOM = 10;  // max cells visible 
+    
+    // Derived viewport params for HTTP polling (integers)
+    let viewportCenter = [5, 5];
+    let viewportRadius = 3;
+    
+    // WebSocket
+    let ws = null;
+    let wsConnected = false;
+    
+    // Performance tracking
+    let messageCount = 0;
+    let agentUpdateCount = 0;
+    let frameCount = 0;
+    let lastPerfTime = Date.now();
+    
+    // Simulation parameters
+    let simulationParams = {};
+    
+    // Viewport polling
+    let viewportPollingActive = false;
+    let viewportPollTimeoutId = null;
+    let viewportFetchInFlight = false;  // Guard against overlapping requests
+    let viewportAgentStore = new Map();  // Agents
+    let CellsStore = new Map();  // Map cells
+    let viewportRTT = [];
+    
+    // Cache for PD data - persists between updates so cells keep their color
+    // when pd data is temporarily unavailable. Key: "x,y", Value: [cc, cd, dd]
+    const pdCache = new Map();
+    
+    // Float positions for viewport agents (client-side physics simulation)
+    // Maps agent id -> { x: float, y: float, targetCellX: int, targetCellY: int, scale: float }
+    // targetCell is the cell center the agent is attracted to (from server's integer position)
+    // x,y is the actual rendered position which may differ during transitions
+    // scale is the age-based size multiplier (affects mesh size and Coulomb repulsion)
+    const viewportFloatPositions = new Map();
+    
+    // Physics constants for agent positioning within cells
+    const PHYSICS = {
+        SPRING_STRENGTH: 0.06,    // Linear spring constant for attraction to cell center
+        BASE_REPULSION: 0.01,    // Base Coulomb-like repulsion (will be scaled by density)
+        REPULSION_FLOOR: 0.05,    // Minimum effective distance for repulsion (prevents infinity)
+        MAX_STEP: 0.04,           // Maximum displacement per frame
+        // Adaptive repulsion parameters
+        REFERENCE_POPULATION: 4,  // Population at which BASE_REPULSION applies directly
+        ADAPTATION_RATE: 0.02,    // How fast the effective repulsion adapts (0-1, lower = smoother)
+        // Parent attraction
+        PARENT_ATTRACTION: 0.03,  // Linear spring constant for attraction to parents
+        PARENT_DISTANCE_CAP: 0.8, // Max effective distance for parent attraction (caps force for remote parents)
+        // Spouse attraction
+        SPOUSE_ATTRACTION: 0.05,   // Linear spring constant for attraction to spouse
+    };
+    
+    // Time conversion: one tick represents this many years
+    const TICK_YEARS = 0.25;
+    
+    /**
+     * Computes age-based scale factor for an agent.
+     * Models human growth: small at birth, full size at 21, slight shrinkage after 40.
+     * @param {number} ageYears - Agent's age in years
+     * @returns {number} Scale factor (0.2 to 1.0+)
+     */
+    function getAgeScale(ageYears) {
+        if (ageYears < 0) return 0.2;  // Safety check
+        if (ageYears < 21) {
+            // Growth phase: 0.2 at birth, 1.0 at age 21
+            return 0.2 + 0.8 * (ageYears / 21);
+        } else if (ageYears <= 40) {
+            // Prime years: full size
+            return 1.0;
+        } else {
+            // Aging: slight shrinkage, but floor at 0.4 to stay visible
+            return Math.max(0.4, 1.0 - 0.01 * (ageYears - 40));
+        }
+    }
+    
+    // Adaptive state for dynamic repulsion scaling
+    let effectiveRepulsion = PHYSICS.BASE_REPULSION;  // Current effective repulsion constant
+    let observedTypicalPopulation = PHYSICS.REFERENCE_POPULATION;  // Smoothed population estimate
+    
+    // Simulation pause state for physics damping
+    let simulationPausedAt = null;  // null when running, timestamp when paused
+    const PAUSE_DAMP_TIME = 10000;  // 10 seconds to come to rest after pause
+    
+    // Last known positions for bearing calculation: id -> {x, y}
+    const lastKnownPositions = new Map();
+    
+    // Input state
+    const keysPressed = new Set();
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+    
+    // Movement speeds
+    const PAN_SPEED_KEYS = 0.3;     // cells per frame when using keys
+    const PAN_SPEED_MOUSE = 0.01;   // multiplier for mouse drag
+    const ZOOM_SPEED_KEYS = 1.05;   // zoom factor per keypress
+    const ZOOM_SPEED_WHEEL = 1.1;   // zoom factor per wheel tick
+    
+    // Population history for graph
+    const populationHistory = {
+        ticks: [],
+        popM: [],
+        popF: [],
+    };
+    let graphUpdateInterval = null;
+    
+    // Histogram data from server (latest snapshot)
+    // Each property array has format: [mean, bin1, bin2, ..., bin10]
+    const histogramData = {
+        age: [],
+        energy: [],
+        kin: [],
+        o: [],
+        c: [],
+        e: [],
+        a: [],
+        n: [],
+        kin_trait: [],
+        xeno: [],
+        hap: [],
+        trust: [],
+    };
+    
+    // Graph display mode: 0 = population time series, >0 =  histograms
+    let graphMode = 0;
+
+    // Shared geometries - created once, never disposed
+    let sharedAgentGeometries = null;
+
+    // Agent mesh cache: agentId -> { mesh, material, geomKey }
+    // This replaces the old agentMeshes Map
+    let agentMeshCache = new Map();
+    
+    // ============================================================
+    // Viewport Parameter Calculation
+    // ============================================================
+    
+    function updateViewportParams() {
+        // integer viewport center and radius to cover the camera view
+        viewportCenter = [Math.round(cameraX-.5), Math.round(cameraY-.5)];
+        //viewport radius: allow aspect (w/h) up to 1.6
+        viewportRadius = Math.ceil((cameraZoom / 2)*Math.max(aspect,1.6));  
+        
+        // Clamp to world bounds
+        viewportCenter[0] = Math.max(0, Math.min(worldWidth - 1, viewportCenter[0]));
+        viewportCenter[1] = Math.max(0, Math.min(worldHeight - 1, viewportCenter[1]));
+    }
+    
+    function getViewportRadius() {
+        return viewportRadius;
+    }
+    
+    // ============================================================
+    // Three.js Setup
+    // ============================================================
+    
+    let scene, camera, renderer;
+    let groundMesh;
+    let gridLines;
+    let agentMeshes = new Map();
+    let cellInstancedMesh = null;  // InstancedMesh for cells 
+    let cellInstanceCount = 0;     // Current number of visible cells
+    
+    // Raycaster for click detection (perspective camera)
+    const raycaster = new THREE.Raycaster();
+    const mouseNDC = new THREE.Vector2();
+        
+    // Colors
+    const COLOR_EMPTY = new THREE.Color(0.05, 0.05, 0.10);
+    const COLOR_GRID = new THREE.Color(0.06, 0.06, 0.15); // default cell background  
+    const COLOR_GRID_LINE = 0x2a2a3e;
+    const COLOR_M = 0x444488;
+    const COLOR_M_BRIGHT = 0x8888ff;
+    const COLOR_F = 0x886666;
+    const COLOR_F_BRIGHT = 0xffaaaa;
+    //same but for canvas:
+    const COLOR_M_STR = "#" + COLOR_M.toString(16).padStart(6, "0");
+    const COLOR_M_BRIGHT_STR = "#" + COLOR_M_BRIGHT.toString(16).padStart(6, "0");
+    const COLOR_F_STR = "#" + COLOR_F.toString(16).padStart(6, "0");
+    const COLOR_F_BRIGHT_STR = "#" + COLOR_F_BRIGHT.toString(16).padStart(6, "0");
+
+    // Histogram colors (by graphMode):
+    HISTO_COLORS=[
+	    [], // graphMode 0 has no histograms
+     	    ['#a8a8a8', '#ff8800', '#4444ff', '#00ffff', '#ffff00', '#ff0088'], // age, energy, n_kin, happiness, trust
+	    ['#C5547C', '#B66D00', '#3D9640', '#0094B9', '#7E6ED3', '#808080'], // big 5 
+	    ['#FF5555', '#5555FF', '#808080', '#808080', '#808080', '#808080'], // race
+	    ['#55FF55', '#FF5555', '#808080', '#808080', '#808080', '#808080'] // culture
+    ];
+
+    // Compute color based on Prisoner's Dilemma outcomes [cc, cd, dd]
+    // Returns { r, g, b } with values in [0, 1] for Three.js or [0, 255] for canvas
+    function computePDColor(pd, forCanvas = false) {
+        if (!pd || pd.length < 3) {
+            // No PD data - return default grid color
+            return forCanvas 
+                ? { r: Math.round(0.06 * 255), g: Math.round(0.06 * 255), b: Math.round(0.15 * 255) }
+                : { r: 0.06, g: 0.06, b: 0.15 };
+        }
+        
+        const [cc, cd, dd] = pd;
+        const total = cc + cd + dd;
+        
+        if (total === 0) {
+            // No games played - return default grid color
+            return forCanvas 
+                ? { r: Math.round(0.06 * 255), g: Math.round(0.06 * 255), b: Math.round(0.15 * 255) }
+                : { r: 0.06, g: 0.06, b: 0.15 };
+        }
+        
+        // redgreen: 0 = more cooperation (green), 1 = more defection (red)
+        const ccPlusDd = cc + dd;
+        const redgreen = ccPlusDd > 0 ? (1 + (dd - cc) / ccPlusDd) / 2 : 0.5;
+        
+        // yellow: proportion of mixed outcomes (one cooperate, one defect)
+        const yellow = cd / total;
+        
+        // brightness: scales with activity, capped at 400 games
+        const brightness = Math.min(400, total) / 400;
+        
+        // Calculate RGB components
+        const r = 0.05 + 0.6 * brightness * ((1 - yellow) * redgreen + yellow);
+        const g = 0.05 + 0.6 * brightness * ((1 - yellow) * (1 - redgreen) + yellow);
+        const b = 0.05 + 0.6 * brightness * ((1 - yellow) * (0.5 - Math.abs(redgreen) / 2));
+        
+        if (forCanvas) {
+            return {
+                r: Math.round(Math.max(0, Math.min(1, r)) * 255),
+                g: Math.round(Math.max(0, Math.min(1, g)) * 255),
+                b: Math.round(Math.max(0, Math.min(1, b)) * 255)
+            };
+        }
+        return {
+            r: Math.max(0, Math.min(1, r/2)),
+            g: Math.max(0, Math.min(1, g/2)),
+            b: Math.max(0, Math.min(1, b/2))
+        };
+    }
+
+    function initThreeJS() {
+        const container = document.getElementById('canvas-container');
+        const canvas = document.getElementById('threejs-canvas');
+        
+        scene = new THREE.Scene();
+        scene.background = COLOR_EMPTY;
+        
+        // Orthographic camera - we'll update bounds dynamically
+        if(ORTHOGRAPHIC){
+            camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 1000);
+        } else {
+            // option for 3d effects, but need to move camera position when zooming for this
+            camera = new THREE.PerspectiveCamera(5, 1.6, 0.05, 2000);
+        }
+        camera.position.set(0, 80, 0);
+        camera.lookAt(0, 0, 0);
+        
+        renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });    
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+     
+        // Create grid lines
+        createGridLines();
+        
+        // Create cell instanced mesh for cooperation display
+        setupCellMesh();
+        
+        // Ambient light
+        const ambientLight = new THREE.AmbientLight(0xffffff, ORTHOGRAPHIC ? 1 : 0.4);
+        scene.add(ambientLight);
+        
+        // Directional light for 3D depth cues (perspective mode only)
+        if (!ORTHOGRAPHIC) {
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(0, 1, 1);  // Light from upper-front-right
+            scene.add(directionalLight);
+        }
+        
+        // Initial camera update
+        updateCameraProjection();
+        initSharedAgentGeometries()
+    }
+
+    function initSharedAgentGeometries() {
+        sharedAgentGeometries = {
+            m: createGeometry(false),
+            f: createGeometry(true)
+        };
+    
+        console.log('Shared agent geometries initialized');
+        console.log('Male geometry type:', sharedAgentGeometries.m.type);
+        console.log('Female geometry type:', sharedAgentGeometries.f.type);
+        console.log('Male geometry vertices:', sharedAgentGeometries.m.attributes.position?.count);
+        console.log('Female geometry vertices:', sharedAgentGeometries.f.attributes.position?.count);
+    }
+    /**
+     * Creates agent geometry at unit scale.
+     * @param {boolean} isFemale - If true, creates wider/shorter variant
+     * @returns {THREE.BufferGeometry}
+     */
+    function createGeometry(isFemale) {
+      // Unit scale dimensions (will be multiplied by baseSize via mesh.scale)
+      let geometry = new THREE.BufferGeometry();    
+      if(ORTHOGRAPHIC){
+        const frontWidth = isFemale ? 0.6 : 0.0;
+        const backWidth = isFemale ? 0.6 : 0.8;
+        const height = isFemale ? 0.6 : 0.6;
+    
+        // Trapezoid: front (narrow) at +Y, back (wide) at -Y
+        // Two triangles to form the quad
+        const vertices = isFemale? 
+            (new Float32Array([
+            // Triangle 1: bottom-left, bottom-right, top-right
+            -backWidth/2, -height/2, 0,
+             backWidth/2, -height/2, 0,
+             frontWidth/2, height/2, 0,
+            // Triangle 2: bottom-left, top-right, top-left
+            -backWidth/2, -height/2, 0,
+             frontWidth/2, height/2, 0,
+            -frontWidth/2, height/2, 0
+        ])) : 
+            (new Float32Array([
+            // Triangle 1: bottom-left, bottom-right, top-center
+            -backWidth/2, -height/2, 0,
+             backWidth/2, -height/2, 0,
+             0, height/2, 0,
+        ]));
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      }
+      else{
+        if(isFemale){
+          //geometry = new THREE.BoxGeometry( 0.45, 2.5, 0.45 ); // cube
+          geometry = new THREE.ConeGeometry( 0.4, 0.6, 4 ); // pyramid
+        } else {
+	  geometry = new THREE.ConeGeometry(0.4, 0.6, 3); // tetrahedron
+	}
+      }
+        return geometry;
+    }
+    
+    function createGridLines() {
+        // Remove old grid lines if they exist
+        if (gridLines) {
+            scene.remove(gridLines);
+            gridLines.geometry.dispose();
+            gridLines.material.dispose();
+        }
+        
+        const points = [];
+        
+        // Vertical lines
+        for (let x = 0; x <= worldWidth; x++) {
+            points.push(new THREE.Vector3(x, 0.02, 0));
+            points.push(new THREE.Vector3(x, 0.02, worldHeight));
+        }
+        
+        // Horizontal lines
+        for (let y = 0; y <= worldHeight; y++) {
+            points.push(new THREE.Vector3(0, 0.02, y));
+            points.push(new THREE.Vector3(worldWidth, 0.02, y));
+        }
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ 
+            color: COLOR_GRID_LINE,
+            transparent: true,
+            opacity: 0.3
+        });
+        
+        gridLines = new THREE.LineSegments(geometry, material);
+        scene.add(gridLines);
+    }
+    
+    function setupCellMesh(maxCells = worldWidth*worldHeight) {
+        // Remove old cell mesh if it exists
+        if (cellInstancedMesh) {
+            scene.remove(cellInstancedMesh);
+            cellInstancedMesh.geometry.dispose();
+            cellInstancedMesh.material.dispose();
+        }
+        
+        // Create a single cell geometry (1x1 plane)
+        // PlaneGeometry is in XY plane by default, we'll rotate it to XZ plane
+        const cellGeometry = new THREE.PlaneGeometry(1, 1);
+        // Rotate geometry itself so it lies flat (in XZ plane) - no mesh rotation needed
+        cellGeometry.rotateX(NEG_HALF_PI);
+
+        // Material - must have a color for instance colors to multiply with
+        const cellMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,  // White base - instance colors will tint this
+            side: THREE.DoubleSide
+        });
+        
+        // Create InstancedMesh - no rotation on the mesh itself
+        cellInstancedMesh = new THREE.InstancedMesh(cellGeometry, cellMaterial, maxCells);
+        cellInstancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        
+        // Pre-create instanceColor buffer
+        const colorArray = new Float32Array(maxCells * 3);
+        cellInstancedMesh.instanceColor = new THREE.InstancedBufferAttribute(colorArray, 3);
+        cellInstancedMesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+        
+        // Start with 0 visible instances
+        cellInstancedMesh.count = 0;
+        
+        scene.add(cellInstancedMesh);
+    }
+    
+    function updateCameraProjection() {
+        const container = document.getElementById('canvas-container');
+        aspect = container.clientWidth / container.clientHeight;
+        
+        // Camera shows cameraZoom cells vertically
+        const halfHeight = cameraZoom / 2;
+        const halfWidth = halfHeight * aspect;
+        
+        camera.left = -halfWidth;
+        camera.right = halfWidth;
+        camera.top = halfHeight;
+        camera.bottom = -halfHeight;
+        camera.updateProjectionMatrix();
+        
+        // Position camera above the cameraX, cameraY point
+        if(ORTHOGRAPHIC){
+          camera.position.set(cameraX, 100, cameraY);
+          }
+        else {
+          camera.position.set(cameraX, 12*cameraZoom, cameraY+12); // y+1 for slight "tilt"
+        }
+        camera.lookAt(cameraX, 0, cameraY);
+        
+        // Update grid line opacity based on zoom
+        if (gridLines) {
+            // Fade out grid lines when zoomed out a lot
+            const opacity = Math.max(0.1, Math.min(0.5, 30 / cameraZoom));
+            gridLines.material.opacity = opacity;
+        }
+    }
+    
+
+/**
+ * Computes the display color for an agent.
+ * 
+ * @param {Object} agent - Agent object with sex, gn (genetics) properties
+ * @param {boolean} bright - If true, use bright/highlighted colors
+ * @returns {number} Color as hex integer (e.g., 0xff6600)
+ */
+function computeAgentColor(agent, bright) {
+    if(graphMode === 0) {
+        return agentAgeColor(agent.born, agent.sex);
+    }
+    else if (graphMode === 1){
+        return agentStateColor(agent.energy,agent.hap);
+    }
+    else if (graphMode === 2){
+        return projectColor(agent.o,agent.c,agent.e,agent.a,agent.n);
+    }
+    else if (graphMode === 3){
+        return raceColor(agent.genes[0], agent.genes[1], agent.genes[2]);
+    }
+    return raceColor(agent.culture[0], agent.culture[1], agent.culture[2]);
+}
+
+/**
+ * Clears all cached agent meshes.
+ * Call this when resetting the world or disconnecting.
+ */
+function clearAgentMeshCache() {
+    for (const [id, cached] of agentMeshCache) {
+        scene.remove(cached.mesh);
+        cached.material.dispose();
+        // Don't dispose geometry for regular agents (shared)
+        // But DO dispose for overlays which have unique geometry
+        if (cached.geomKey === '__overlay__') {
+            cached.mesh.geometry.dispose();
+        }
+    }
+    agentMeshCache.clear();
+    console.log('Agent mesh cache cleared');
+}
+
+/**
+ * Updates float positions for viewport agents using physics simulation.
+ * - Spring force (linear) attracts each agent to its assigned cell center
+ * - Coulomb force (1/r²) repels agents from ALL nearby agents (not just same cell)
+ * - Repulsion strength adapts dynamically based on observed population density
+ * - When an agent "moves" (integer position changes), it smoothly transitions
+ *   to its new cell rather than teleporting
+ */
+function updateViewportAgentPhysics() {
+    // Build spatial index based on CURRENT FLOAT positions for neighbor lookup
+    // Also count population per TARGET cell for density estimation
+    const agentsByFloatCell = new Map();  // "cellX,cellY" -> [agent ids] (for repulsion lookup)
+    const populationByTargetCell = new Map();  // "cellX,cellY" -> count (for density stats)
+    
+    for (const agent of viewportAgentStore.values()) {
+        // The cell this agent is "attached to" (from server's integer position)
+        const targetCellX = Math.floor(agent.x);
+        const targetCellY = Math.floor(agent.y);
+        const targetKey = `${targetCellX},${targetCellY}`;
+        
+        // Count population per target cell
+        populationByTargetCell.set(targetKey, (populationByTargetCell.get(targetKey) || 0) + 1);
+        
+        // Calculate age-based scale
+        const bornTick = agent.born ?? 0;
+        const ageTicks = serverTick - bornTick;
+        const ageYears = ageTicks * TICK_YEARS;
+        const scale = getAgeScale(ageYears);
+        
+        // Check if agent is unborn (negative age)
+        if (ageYears < 0) {
+            // Unborn agent - clamp position to mother (parent[1])
+            const motherId = agent.parent ? agent.parent[1] : null;
+            const motherFloatPos = motherId ? viewportFloatPositions.get(motherId) : null;
+            
+            let floatPos = viewportFloatPositions.get(agent.id);
+            if (motherFloatPos) {
+                // Position at mother's location
+                if (!floatPos) {
+                    floatPos = {
+                        x: motherFloatPos.x,
+                        y: motherFloatPos.y,
+                        targetCellX: targetCellX,
+                        targetCellY: targetCellY,
+                        scale: scale,
+                        age: ageYears,
+                        isUnborn: true
+                    };
+                    viewportFloatPositions.set(agent.id, floatPos);
+                } else {
+                    floatPos.x = motherFloatPos.x;
+                    floatPos.y = motherFloatPos.y;
+                    floatPos.targetCellX = targetCellX;
+                    floatPos.targetCellY = targetCellY;
+                    floatPos.scale = scale;
+                    floatPos.age = ageYears;
+                    floatPos.isUnborn = true;
+                }
+            } else {
+                // Mother not in viewport - use target cell center
+                if (!floatPos) {
+                    floatPos = {
+                        x: targetCellX + 0.5,
+                        y: targetCellY + 0.5,
+                        targetCellX: targetCellX,
+                        targetCellY: targetCellY,
+                        scale: scale,
+                        age: ageYears,
+                        isUnborn: true
+                    };
+                    viewportFloatPositions.set(agent.id, floatPos);
+                } else {
+                    floatPos.targetCellX = targetCellX;
+                    floatPos.targetCellY = targetCellY;
+                    floatPos.scale = scale;
+                    floatPos.age = ageYears;
+                    floatPos.isUnborn = true;
+                }
+            }
+            
+            // Don't index unborn agents in agentsByFloatCell - they shouldn't exert forces on others
+            continue;  // Skip normal physics initialization for unborn agents
+        }
+        
+        // Initialize or update float position
+        let floatPos = viewportFloatPositions.get(agent.id);
+        
+        if (!floatPos) {
+            // New agent - initialize at target cell center with random offset
+            const angle = Math.random() * TWOPI;
+
+            const radius = Math.random() * 0.15;
+            floatPos = {
+                x: targetCellX + 0.5 + Math.cos(angle) * radius,
+                y: targetCellY + 0.5 + Math.sin(angle) * radius,
+                targetCellX: targetCellX,
+                targetCellY: targetCellY,
+                scale: scale,
+                age: ageYears,
+                isUnborn: false
+            };
+            viewportFloatPositions.set(agent.id, floatPos);
+        } else {
+            // Existing agent - update target cell and scale but KEEP float position
+            floatPos.targetCellX = targetCellX;
+            floatPos.targetCellY = targetCellY;
+            floatPos.scale = scale;
+            floatPos.age = ageYears;
+            floatPos.isUnborn = false;
+        }
+        
+        // Index by the cell the agent is CURRENTLY IN (based on float position)
+        const currentCellX = Math.floor(floatPos.x);
+        const currentCellY = Math.floor(floatPos.y);
+        const cellKey = `${currentCellX},${currentCellY}`;
+        
+        if (!agentsByFloatCell.has(cellKey)) {
+            agentsByFloatCell.set(cellKey, []);
+        }
+        agentsByFloatCell.get(cellKey).push(agent.id);
+    }
+    
+    // NOTE: We intentionally do NOT delete float positions when agents leave viewport.
+    // This preserves their position if they re-enter the viewport later.
+    // Float positions are only deleted when agents despawn (die) - see handleMessage().
+    
+    // --- Adaptive repulsion: compute typical population and adjust ---
+    if (populationByTargetCell.size > 0) {
+        // Get population counts for occupied cells only
+        const populations = Array.from(populationByTargetCell.values());
+        
+        // Use 75th percentile as "typical" - robust to outliers, captures crowded cells
+        populations.sort((a, b) => a - b);
+        const p75Index = Math.floor(populations.length * 0.75);
+        const typicalPopulation = populations[Math.min(p75Index, populations.length - 1)];
+        
+        // Smooth adaptation over time to avoid sudden jumps
+        observedTypicalPopulation += (typicalPopulation - observedTypicalPopulation) * PHYSICS.ADAPTATION_RATE;
+        
+        // Scale repulsion inversely with population squared
+        // At REFERENCE_POPULATION, use BASE_REPULSION directly
+        // At higher populations, reduce repulsion so agents fit in cells
+        const scaleFactor = Math.pow(PHYSICS.REFERENCE_POPULATION / Math.max(1, observedTypicalPopulation), 2);
+        effectiveRepulsion = PHYSICS.BASE_REPULSION * scaleFactor;
+    }
+    
+    // Apply physics forces to each agent
+    for (const [agentId, pos] of viewportFloatPositions) {
+        // Skip unborn agents - they're clamped to their mother
+        if (pos.isUnborn) continue;
+        
+        let forceX = 0;
+        let forceY = 0;
+        
+        // 1. Spring attraction to target cell center (F = k * displacement)
+        const targetCenterX = pos.targetCellX + 0.5;
+        const targetCenterY = pos.targetCellY + 0.5;
+        const toCenterX = targetCenterX - pos.x;
+        const toCenterY = targetCenterY - pos.y;
+        forceX += toCenterX * PHYSICS.SPRING_STRENGTH;
+        forceY += toCenterY * PHYSICS.SPRING_STRENGTH;
+        
+        // 2. Coulomb repulsion from nearby agents (check 3x3 cell neighborhood)
+        const currentCellX = Math.floor(pos.x);
+        const currentCellY = Math.floor(pos.y);
+        
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                const neighborKey = `${currentCellX + dx},${currentCellY + dy}`;
+                const neighborsInCell = agentsByFloatCell.get(neighborKey);
+                if (!neighborsInCell) continue;
+                
+                for (const otherId of neighborsInCell) {
+                    if (otherId === agentId) continue;
+                    
+                    const otherPos = viewportFloatPositions.get(otherId);
+                    if (!otherPos) continue;
+                    
+                    const ddx = pos.x - otherPos.x;
+                    const ddy = pos.y - otherPos.y;
+                    const distSq = ddx * ddx + ddy * ddy;
+                    const dist = Math.sqrt(distSq);
+                    
+                    // Use floor distance to prevent infinite forces
+                    const effectiveDist = Math.max(dist, PHYSICS.REPULSION_FLOOR);
+                    const effectiveDistSq = effectiveDist * effectiveDist;
+                    
+                    // Direction (random if coincident)
+                    let dirX, dirY;
+                    if (dist < 0.001) {
+                        const angle = Math.random() * TWOPI;
+                        dirX = Math.cos(angle);
+                        dirY = Math.sin(angle);
+                    } else {
+                        dirX = ddx / dist;
+                        dirY = ddy / dist;
+                    }
+                    
+                    // Coulomb-like repulsion: F ∝ scale² * otherScale² / r²
+                    // Each agent's "charge" is proportional to scale², product gives combined effect
+		    // -- results may actually be a bit better using  "/(effectiveDistSq*effectiveDistSq*30)", effectively r^-4. 
+                    const scaleFactorSq = (pos.scale || 1) * (pos.scale || 1) * (otherPos.scale || 1) * (otherPos.scale || 1);
+                    const repulsionStrength = effectiveRepulsion * scaleFactorSq / effectiveDistSq;
+                    forceX += dirX * repulsionStrength;
+                    forceY += dirY * repulsionStrength;
+                }
+            }
+        }
+        
+        // 3. Parent attraction (if agent has living parents)
+        // Parent bond weakens with age: force * 1/(1 + age/20)
+        const parentBondStrength = 1 / (1 + (pos.age || 0) / 20);
+        const agent = viewportAgentStore.get(agentId);
+        if (agent && agent.parent && Array.isArray(agent.parent)) {
+            for (const parentId of agent.parent) {
+                if (parentId === undefined || parentId === null) continue;
+                
+                // Check if parent is alive (in either store)
+                const parentInViewport = viewportAgentStore.get(parentId);
+                const parentInGlobal = agentStore.get(parentId);
+                const parentAgent = parentInViewport || parentInGlobal;
+                
+                if (!parentAgent) continue;  // Parent is dead
+                
+                // Get parent position: use float position if available, else cell center
+                let parentX, parentY;
+                const parentFloatPos = viewportFloatPositions.get(parentId);
+                if (parentFloatPos) {
+                    parentX = parentFloatPos.x;
+                    parentY = parentFloatPos.y;
+                } else {
+                    parentX = Math.floor(parentAgent.x) + 0.5;
+                    parentY = Math.floor(parentAgent.y) + 0.5;
+                }
+                
+                // Calculate displacement to parent
+                const toParentX = parentX - pos.x;
+                const toParentY = parentY - pos.y;
+                const distToParent = Math.sqrt(toParentX * toParentX + toParentY * toParentY);
+                
+                // Cap effective distance to limit force for remote parents
+                const effectiveParentDist = Math.min(distToParent, PHYSICS.PARENT_DISTANCE_CAP) * (parentAgent.sex? 1:0.5);
+                
+                // Linear spring force toward parent (using capped distance for magnitude)
+                if (distToParent > 0.001) {
+                    const dirToParentX = toParentX / distToParent;
+                    const dirToParentY = toParentY / distToParent;
+                    forceX += dirToParentX * effectiveParentDist * PHYSICS.PARENT_ATTRACTION * parentBondStrength;
+                    forceY += dirToParentY * effectiveParentDist * PHYSICS.PARENT_ATTRACTION * parentBondStrength;
+                }
+            }
+        }
+        
+        // 4. Spouse attraction (if agent has a living spouse)
+        if (agent && agent.spouse !== undefined && agent.spouse !== -1) {
+            const spouseId = agent.spouse;
+            
+            // Check if spouse is alive (in either store)
+            const spouseInViewport = viewportAgentStore.get(spouseId);
+            const spouseInGlobal = agentStore.get(spouseId);
+            const spouseAgent = spouseInViewport || spouseInGlobal;
+            
+            if (spouseAgent) {
+                // Get spouse position: use float position if available, else cell center
+                let spouseX, spouseY;
+                const spouseFloatPos = viewportFloatPositions.get(spouseId);
+                if (spouseFloatPos) {
+                    spouseX = spouseFloatPos.x;
+                    spouseY = spouseFloatPos.y;
+                } else {
+                    spouseX = Math.floor(spouseAgent.x) + 0.5;
+                    spouseY = Math.floor(spouseAgent.y) + 0.5;
+                }
+                
+                // Calculate displacement to spouse
+                const toSpouseX = spouseX - pos.x;
+                const toSpouseY = spouseY - pos.y;
+                const distToSpouse = Math.sqrt(toSpouseX * toSpouseX + toSpouseY * toSpouseY);
+                
+                // Cap effective distance (same as parent cap)
+                const effectiveSpouseDist = Math.min(distToSpouse, PHYSICS.PARENT_DISTANCE_CAP);
+                
+                // Linear spring force toward spouse
+                if (distToSpouse > 0.001) {
+                    const dirToSpouseX = toSpouseX / distToSpouse;
+                    const dirToSpouseY = toSpouseY / distToSpouse;
+                    forceX += dirToSpouseX * effectiveSpouseDist * PHYSICS.SPOUSE_ATTRACTION;
+                    forceY += dirToSpouseY * effectiveSpouseDist * PHYSICS.SPOUSE_ATTRACTION;
+                }
+            }
+        }
+        
+        const forceMag = Math.sqrt(forceX * forceX + forceY * forceY);
+        // Cap the total force to prevent huge jumps
+        if (forceMag > PHYSICS.MAX_STEP) {
+            const capFactor = PHYSICS.MAX_STEP / forceMag;
+            forceX *= capFactor;
+            forceY *= capFactor;
+        }
+        
+        // Damp all forces when simulation is paused
+        if (simulationPausedAt !== null) {
+            const timeSincePause = Date.now() - simulationPausedAt;
+            const pauseDamp = Math.max(0.05, 1 - timeSincePause / PAUSE_DAMP_TIME);
+            forceX *= pauseDamp;
+            forceY *= pauseDamp;
+        }
+        
+        // Apply age-based inertia: older agents move less (effective mass increases with age)
+        const inertia = 1 / (1 + (pos.age || 0) / 40);
+        
+        // Apply force to position (no clamping - let physics do its thing)
+        pos.x += forceX * inertia;
+        pos.y += forceY * inertia;
+    }
+}
+
+
+function updateThreeJSViewport() {
+    // -------------------------------
+    // PART A: Update cell instances 
+    // -------------------------------
+    if (cellInstancedMesh && CellsStore.size > 0) {
+        const matrix = new THREE.Matrix4();
+        const color = new THREE.Color();
+        let instanceIndex = 0;
+        
+        for (const cell of CellsStore.values()) {
+            if (instanceIndex < cellInstancedMesh.instanceMatrix.count) {
+                matrix.makeTranslation(cell.x + 0.5, 0.01, cell.y + 0.5);
+                cellInstancedMesh.setMatrixAt(instanceIndex, matrix);
+                
+                // Dynamic map cell color based on PD outcomes
+                // Use cache if pd is undefined/null or [0,0,0] when we have cached data
+                const cellKey = `${cell.x},${cell.y}`;
+                let pd = cell.pd;
+                const cachedPd = pdCache.get(cellKey);
+                const pdIsEmpty = !pd || (pd[0] === 0 && pd[1] === 0 && pd[2] === 0);
+                
+                if (!pdIsEmpty) {
+                    pdCache.set(cellKey, pd);
+                } else if (cachedPd) {
+                    pd = cachedPd;
+                }
+                const mapColor = computePDColor(pd, false);
+                
+                color.setRGB(
+                    mapColor.r,
+                    mapColor.g,
+                    mapColor.b
+                );
+                cellInstancedMesh.setColorAt(instanceIndex, color);
+                
+                instanceIndex++;
+            }
+        }
+        
+        cellInstancedMesh.count = instanceIndex;
+        cellInstancedMesh.instanceMatrix.needsUpdate = true;
+        if (cellInstancedMesh.instanceColor) {
+            cellInstancedMesh.instanceColor.needsUpdate = true;
+        }
+    } else if (cellInstancedMesh) {
+        cellInstancedMesh.count = 0;
+    }
+    
+    // -----------------------------------
+    // PART B: OPTIMIZED Agent Rendering
+    // -----------------------------------
+    
+    // Calculate visible bounds (with padding)
+    const container = document.getElementById('canvas-container');
+    aspect = container.clientWidth / container.clientHeight;
+    const halfHeight = cameraZoom / 2;
+    const halfWidth = halfHeight * aspect;
+    
+    const minX = cameraX - halfWidth - 1;
+    const maxX = cameraX + halfWidth + 1;
+    const minY = cameraY - halfHeight - 1;
+    const maxY = cameraY + halfHeight + 1;
+    
+    // Collect agents to render (prefer viewport store over WS store, RENDER_NONVIEWPORT toggles if WS store shows up at all)
+    const agentsToRender = new Map();
+
+    if(RENDER_NONVIEWPORT){
+        for (const agent of agentStore.values()) {
+            agentsToRender.set(agent.id, { agent, bright: false });
+        }
+    }
+    
+    for (const agent of viewportAgentStore.values()) {
+        agentsToRender.set(agent.id, { agent, bright: true });
+    }
+    
+    // Base size scales with zoom (but with limits)
+    const baseSize = Math.max(0.075, Math.min(0.2, 4 / cameraZoom));
+    
+    // Track which agents we've seen this frame
+    const visibleAgentIds = new Set();
+    
+    // Process each visible agent
+    for (const { agent, bright } of agentsToRender.values()) {
+        // Skip if outside visible bounds
+        if (agent.x < minX || agent.x > maxX || agent.y < minY || agent.y > maxY) {
+            continue;
+        }
+        
+        visibleAgentIds.add(agent.id);
+        
+        // Determine geometry key
+        const geomKey = (agent.sex ? 'f' : 'm');
+        
+        // Check if we have a cached mesh for this agent
+        let cached = agentMeshCache.get(agent.id);
+        
+        if (!cached || cached.geomKey !== geomKey) {
+            // Agent is new, or changed sex (shouldn't happen, but handle it)
+            if (cached) {
+                // Remove old mesh if type changed
+                scene.remove(cached.mesh);
+                cached.material.dispose();
+            }
+            
+            // Create new material for this agent
+            // Use MeshLambertMaterial in perspective mode for lighting response
+            const material = ORTHOGRAPHIC 
+                ? new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })
+                : new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+            
+            // Create mesh using shared geometry
+            const mesh = new THREE.Mesh(sharedAgentGeometries[geomKey], material);
+            if (ORTHOGRAPHIC) {
+                mesh.rotation.x = NEG_HALF_PI;  // Lay flat 2D shapes on XZ plane
+            }
+
+            else{
+                mesh.rotation.y = agent.sex? NEG_HALF_PI/2 : SIXTY_DEG;
+            }
+            mesh.userData.agentId = agent.id;  // Store agent ID for raycasting
+            
+            // DEBUG: log first few mesh creations
+            if (agentMeshCache.size < 5) {
+                console.log(`Creating mesh for agent ${agent.id}: sex=${agent.sex}, geomKey=${geomKey}, geometry.type=${mesh.geometry.type}`);
+            }
+            
+            scene.add(mesh);
+            
+            cached = { mesh, material, geomKey };
+            agentMeshCache.set(agent.id, cached);
+        }
+        
+        // --- Update mesh properties ---
+        
+        // Position: use float positions for viewport agents, cell center for others
+        let renderX, renderY;
+        let ageScale = 1.0;  // Age-based scale factor
+        
+        if (bright) {
+            // Viewport agent - use physics-simulated float position and pre-computed scale
+            const floatPos = viewportFloatPositions.get(agent.id);
+            if (floatPos) {
+                renderX = floatPos.x;
+                renderY = floatPos.y;
+                ageScale = floatPos.scale || 1.0;
+            } else {
+                // Fallback to cell center if no float position yet
+                renderX = Math.floor(agent.x) + 0.5;
+                renderY = Math.floor(agent.y) + 0.5;
+            }
+        } else {
+            // Non-viewport agent - render at cell center, calculate age scale directly
+            renderX = Math.floor(agent.x) + 0.5;
+            renderY = Math.floor(agent.y) + 0.5;
+            const bornTick = agent.born;
+            if (bornTick !== undefined) {
+                const ageTicks = serverTick - bornTick;
+                const ageYears = ageTicks * TICK_YEARS;
+                ageScale = getAgeScale(ageYears);
+            }
+        }
+        cached.mesh.position.set(renderX, 0.1, renderY);
+        
+        // Scale: base size adjusted by age-based scale
+        cached.mesh.scale.setScalar(baseSize * ageScale);
+        
+        // Rotation (bearing), not needed
+        // const bearing = -Math.atan2(dx, -dy);
+        // cached.mesh.rotation.z = bearing;
+
+        // Color
+        const agentColor = computeAgentColor(agent, bright);
+        cached.material.color.setHex(agentColor);
+    }
+    
+    // --------------------------------------------------------
+    // PART B2: Parent connection lines
+    // --------------------------------------------------------
+    
+    // Clean up old parent lines (collect keys first to avoid modifying map while iterating)
+    const parentLineKeys = [];
+    for (const key of agentMeshCache.keys()) {
+        if (typeof key === 'string' && key.startsWith('__parentLine_')) {
+            parentLineKeys.push(key);
+        }
+    }
+    for (const key of parentLineKeys) {
+        const cached = agentMeshCache.get(key);
+        scene.remove(cached.mesh);
+        cached.mesh.geometry.dispose();
+        cached.material.dispose();
+        agentMeshCache.delete(key);
+    }
+    
+    // Draw lines from viewport agents to their living parents
+    for (const agent of viewportAgentStore.values()) {
+        if (!agent.parent || !Array.isArray(agent.parent)) continue;
+        
+        // Get this agent's position
+        const floatPos = viewportFloatPositions.get(agent.id);
+        if (!floatPos) continue;
+        
+        const agentX = floatPos.x;
+        const agentY = floatPos.y;
+        
+        for (let i = 0; i < agent.parent.length; i++) {
+            const parentId = agent.parent[i];
+            if (parentId === undefined || parentId === null) continue;
+            
+            // Check if parent is alive
+            const parentInViewport = viewportAgentStore.get(parentId);
+            const parentInGlobal = agentStore.get(parentId);
+            const parentAgent = parentInViewport || parentInGlobal;
+            
+            if (!parentAgent) continue;  // Parent is dead
+            
+            // Get parent position
+            let parentX, parentY;
+            const parentFloatPos = viewportFloatPositions.get(parentId);
+            if (parentFloatPos) {
+                parentX = parentFloatPos.x;
+                parentY = parentFloatPos.y;
+            } else {
+                parentX = Math.floor(parentAgent.x) + 0.5;
+                parentY = Math.floor(parentAgent.y) + 0.5;
+            }
+            
+            // Create line geometry
+            const lineGeometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array([
+                agentX, 0.01, agentY,      // Child position (slightly above ground)
+                parentX, 0.01, parentY     // Parent position
+            ]);
+            lineGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            
+            // Line color: semi-transparent based on agent's color
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: (i? 0xff2020 : 0x2020ff),  
+                transparent: true,
+                opacity: 0.3
+            });
+            
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(line);
+            
+            const lineKey = `__parentLine_${agent.id}_${i}`;
+            agentMeshCache.set(lineKey, { mesh: line, material: lineMaterial, geomKey: '__overlay__' });
+        }
+    }
+    
+    // --------------------------------------------------------
+    // PART B3: Spouse connection lines
+    // --------------------------------------------------------
+    
+    // Clean up old spouse lines (collect keys first to avoid modifying map while iterating)
+    const spouseLineKeys = [];
+    for (const key of agentMeshCache.keys()) {
+        if (typeof key === 'string' && key.startsWith('__spouseLine_')) {
+            spouseLineKeys.push(key);
+        }
+    }
+    for (const key of spouseLineKeys) {
+        const cached = agentMeshCache.get(key);
+        scene.remove(cached.mesh);
+        cached.mesh.geometry.dispose();
+        cached.material.dispose();
+        agentMeshCache.delete(key);
+    }
+    
+    // Draw lines between spouses (only draw once per pair: when agent.id < spouse.id)
+    for (const agent of viewportAgentStore.values()) {
+        if (agent.spouse === undefined || agent.spouse === -1) continue;
+        
+        const spouseId = agent.spouse;
+        
+        // Only draw if agent.id < spouseId to avoid drawing twice when both are in viewport
+        if (agent.id >= spouseId) continue;
+        
+        // Check if spouse is alive (in either store)
+        const spouseInViewport = viewportAgentStore.get(spouseId);
+        const spouseInGlobal = agentStore.get(spouseId);
+        const spouseAgent = spouseInViewport || spouseInGlobal;
+        
+        if (!spouseAgent) continue;  // Spouse is dead
+        
+        // Get this agent's position
+        const floatPos = viewportFloatPositions.get(agent.id);
+        if (!floatPos) continue;
+        
+        const agentX = floatPos.x;
+        const agentY = floatPos.y;
+        
+        // Get spouse position
+        let spouseX, spouseY;
+        const spouseFloatPos = viewportFloatPositions.get(spouseId);
+        if (spouseFloatPos) {
+            spouseX = spouseFloatPos.x;
+            spouseY = spouseFloatPos.y;
+        } else {
+            spouseX = Math.floor(spouseAgent.x) + 0.5;
+            spouseY = Math.floor(spouseAgent.y) + 0.5;
+        }
+        
+        // Create line geometry
+	if(ORTHOGRAPHIC){
+        const lineGeometry = new THREE.BufferGeometry();
+        const vertices = new Float32Array([
+            agentX, 0.015, agentY,      // Agent position (slightly above parent lines)
+            spouseX, 0.015, spouseY     // Spouse position
+        ]);
+        lineGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        
+        // Line color: yellow for spouse connection
+        const lineMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xffff00,  
+            transparent: true,
+            opacity: 0.7
+        });
+	const line = new THREE.Line(lineGeometry, lineMaterial);
+        scene.add(line);
+        const lineKey = `__spouseLine_${agent.id}_${spouseId}`;
+        agentMeshCache.set(lineKey, { mesh: line, material: lineMaterial, geomKey: '__overlay__' });
+	} else {
+	//==== "rectangle" lines for PerspectiveCamera
+	const dx = spouseX - agentX;
+	const dz = spouseY - agentY;
+	const length = Math.sqrt(dx * dx + dz * dz);
+	const angle = Math.atan2(dx, dz);
+
+	const lineWidth = 0.005;
+	const lineGeometry = new THREE.PlaneGeometry(lineWidth, length);
+	const lineMaterial = new THREE.MeshBasicMaterial({ 
+	    color: 0xffff00,  
+	    transparent: true,
+	    opacity: 0.4,
+	    side: THREE.DoubleSide
+	});
+
+	const line = new THREE.Mesh(lineGeometry, lineMaterial);
+
+	// Position at midpoint
+	line.position.set(
+	    (agentX + spouseX) / 2,
+	    0.05,
+	    (agentY + spouseY) / 2
+	);
+
+	// Lay flat in XZ plane, then rotate to align with direction
+	line.rotation.x = NEG_HALF_PI;
+	line.rotation.z = angle;
+
+	scene.add(line);
+        const lineKey = `__spouseLine_${agent.id}_${spouseId}`;
+        agentMeshCache.set(lineKey, { mesh: line, material: lineMaterial, geomKey: '__overlay__' });
+
+	//=====================
+        }
+
+        
+    }
+    
+    // --------------------------------------------------------
+    // PART C: Remove meshes for agents no longer visible
+    // --------------------------------------------------------
+    for (const [id, cached] of agentMeshCache) {
+        // Skip overlay entries (string keys like '__selectedCell__', '__parentLine_*', etc.)
+        if (typeof id === 'string') continue;
+        
+        if (!visibleAgentIds.has(id)) {
+            scene.remove(cached.mesh);
+            cached.material.dispose();
+            // Do NOT dispose geometry - it's shared!
+            agentMeshCache.delete(id);
+        }
+    }
+    
+    // --------------------------------------------------------
+    // PART D: Highlight overlays (selected cell, tracked agent)
+    // --------------------------------------------------------
+    
+    // Clean up previous overlay meshes
+    const oldCellOutline = agentMeshCache.get('__selectedCell__');
+    if (oldCellOutline) {
+        scene.remove(oldCellOutline.mesh);
+        oldCellOutline.mesh.geometry.dispose();
+        oldCellOutline.material.dispose();
+        agentMeshCache.delete('__selectedCell__');
+    }
+    
+    const oldTrackedRing = agentMeshCache.get('__trackedAgent__');
+    if (oldTrackedRing) {
+        scene.remove(oldTrackedRing.mesh);
+        oldTrackedRing.mesh.geometry.dispose();
+        oldTrackedRing.material.dispose();
+        agentMeshCache.delete('__trackedAgent__');
+    }
+    
+    // Highlight selected cell
+    if (selectedCell) {
+        const cellSize = 1.0;
+        const cellGeometry = new THREE.BufferGeometry();
+        const vertices = new Float32Array([
+            selectedCell.x, 0.02, selectedCell.y,
+            selectedCell.x + cellSize, 0.02, selectedCell.y,
+            selectedCell.x + cellSize, 0.02, selectedCell.y + cellSize,
+            selectedCell.x, 0.02, selectedCell.y + cellSize,
+            selectedCell.x, 0.02, selectedCell.y
+        ]);
+        cellGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        const cellMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
+        const cellOutline = new THREE.Line(cellGeometry, cellMaterial);
+        scene.add(cellOutline);
+        agentMeshCache.set('__selectedCell__', { mesh: cellOutline, material: cellMaterial, geomKey: '__overlay__' });
+    }
+    
+    // Highlight tracked agent with yellow ring (only if agent exists and is in viewport)
+    if (trackedAgentId !== null) {
+        const agent = viewportAgentStore.get(trackedAgentId) || agentStore.get(trackedAgentId);
+        const floatPos = viewportFloatPositions.get(trackedAgentId);
+        if (agent && floatPos) {
+            // Calculate ring radius based on agent's rendered size
+            const ageScale = floatPos.scale || 1.0;
+            // Ring radius slightly larger than the agent mesh (baseSize * ageScale * 0.6)
+            const ringRadius = baseSize * ageScale * 0.4;
+            const ringSegments = 32;
+            const ringVertices = [];
+            
+            for (let i = 0; i <= ringSegments; i++) {
+                const angle = (i / ringSegments) * TWOPI;
+                ringVertices.push(
+                    floatPos.x + Math.cos(angle) * ringRadius,
+                    0.1, // marker position above plane
+                    floatPos.y + Math.sin(angle) * ringRadius
+                );
+            }
+            
+            const ringGeometry = new THREE.BufferGeometry();
+            ringGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ringVertices), 3));
+            const ringMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
+            const ring = new THREE.Line(ringGeometry, ringMaterial);
+            scene.add(ring);
+            agentMeshCache.set('__trackedAgent__', { mesh: ring, material: ringMaterial, geomKey: '__overlay__' });
+        }
+    }
+}
+    
+    function renderThreeJS() {
+        if (!renderer) return;
+        updateCameraProjection();
+        updateViewportAgentPhysics();  // Update agent positions each frame
+        updateThreeJSViewport();
+        renderer.render(scene, camera);
+    }
+    
+    function onWindowResize() {
+        const container = document.getElementById('canvas-container');
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        updateCameraProjection();
+        setupMinimap();
+        setupPopulationGraph();
+    }
+    
+    // ============================================================
+    // Input Handling
+    // ============================================================
+    
+    function handleKeyDown(event) {
+        // Ignore if typing in an input field
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT') {
+            return;
+        }
+        
+        keysPressed.add(event.key.toLowerCase());
+        
+        // Handle zoom keys
+        if (event.key === '+' || event.key === '=') {
+            zoomIn();
+            event.preventDefault();
+        } else if (event.key === '-' || event.key === '_') {
+            zoomOut();
+            event.preventDefault();
+        }
+    }
+    
+    function handleKeyUp(event) {
+        keysPressed.delete(event.key.toLowerCase());
+    }
+    
+    function handleMouseDown(event) {
+        const canvas = document.getElementById('threejs-canvas');
+        if (event.target === canvas) {
+            isDragging = true;
+            lastMouseX = event.clientX;
+            lastMouseY = event.clientY;
+            event.preventDefault();
+        }
+    }
+    
+    function handleMouseMove(event) {
+        if (!isDragging) return;
+        
+        const deltaX = event.clientX - lastMouseX;
+        const deltaY = event.clientY - lastMouseY;
+        
+        // Convert pixel movement to world units
+        const container = document.getElementById('canvas-container');
+        const pixelsPerCell = container.clientHeight / cameraZoom;
+        
+        cameraX -= deltaX / pixelsPerCell;
+        cameraY -= deltaY / pixelsPerCell;
+        
+        // Clamp to world bounds (with some margin)
+        cameraX = Math.max(0, Math.min(worldWidth, cameraX));
+        cameraY = Math.max(0, Math.min(worldHeight, cameraY));
+        
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+        
+        updateViewportParams();
+    }
+    
+    function handleMouseUp(event) {
+        isDragging = false;
+    }
+    
+    function handleWheel(event) {
+        const canvas = document.getElementById('threejs-canvas');
+        if (event.target === canvas) {
+            if (event.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+            event.preventDefault();
+        }
+    }
+    
+    function zoomIn() {
+        cameraZoom = Math.max(MIN_ZOOM, cameraZoom / ZOOM_SPEED_WHEEL);
+        updateViewportParams();
+    }
+    
+    function zoomOut() {
+        cameraZoom = Math.min(MAX_ZOOM, cameraZoom * ZOOM_SPEED_WHEEL);
+        updateViewportParams();
+    }
+    
+    function processInput() {
+        // WASD movement
+        let dx = 0, dy = 0;
+        
+        if (keysPressed.has('w') || keysPressed.has('arrowup')) dy -= 1;
+        if (keysPressed.has('s') || keysPressed.has('arrowdown')) dy += 1;
+        if (keysPressed.has('a') || keysPressed.has('arrowleft')) dx -= 1;
+        if (keysPressed.has('d') || keysPressed.has('arrowright')) dx += 1;
+        
+        if (dx !== 0 || dy !== 0) {
+            // Scale speed with zoom level
+            const speed = PAN_SPEED_KEYS * (cameraZoom / 20);
+            cameraX += dx * speed;
+            cameraY += dy * speed;
+            
+            // Clamp to world bounds
+            cameraX = Math.max(0, Math.min(worldWidth, cameraX));
+            cameraY = Math.max(0, Math.min(worldHeight, cameraY));
+            
+            updateViewportParams();
+        }
+    }
+    
+    // ============================================================
+    // Minimap (2D Canvas)
+    // ============================================================
+    
+    function setupMinimap() {
+        const container = document.getElementById('minimap-container');
+        const canvas = document.getElementById('minimap-canvas');
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+    }
+    
+    function renderMinimap() {
+        const canvas = document.getElementById('minimap-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const cellWidth = canvas.width / worldWidth;
+        const cellHeight = canvas.height / worldHeight;
+        
+        // Clear with default color 
+        ctx.fillStyle = `rgb(${Math.round(0.06*255)}, ${Math.round(0.06*255)}, ${Math.round(0.15*255)})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw cells based on PD data from CellsStore
+        // First, build cellPopulation to detect truly empty cells
+        const cellPopulation = new Map();
+        for (const agent of agentStore.values()) {
+            const cx = Math.floor(agent.x);
+            const cy = Math.floor(agent.y);
+            const key = `${cx},${cy}`;
+            cellPopulation.set(key, (cellPopulation.get(key) || 0) + 1);
+        }
+        for (const agent of viewportAgentStore.values()) {
+            if (agentStore.has(agent.id)) continue;
+            const cx = Math.floor(agent.x);
+            const cy = Math.floor(agent.y);
+            const key = `${cx},${cy}`;
+            cellPopulation.set(key, (cellPopulation.get(key) || 0) + 1);
+        }
+        
+        for (const cell of CellsStore.values()) {
+            const cx = cell.x;
+            const cy = cell.y;
+            const cellKey = `${cx},${cy}`;
+            
+            // If cell is truly empty (no population), clear its pdCache
+            const pop = cellPopulation.get(cellKey) || 0;
+            if (pop === 0) {
+                pdCache.delete(cellKey);
+            }
+            
+            // Use cache if pd is undefined/null or [0,0,0] when we have cached data
+            let pd = cell.pd;
+            const cachedPd = pdCache.get(cellKey);
+            const pdIsEmpty = !pd || (pd[0] === 0 && pd[1] === 0 && pd[2] === 0);
+            
+            if (!pdIsEmpty) {
+                pdCache.set(cellKey, pd);
+            } else if (cachedPd) {
+                pd = cachedPd;
+            }
+            
+            // Compute PD-based color
+            const pdColor = computePDColor(pd, true);
+            ctx.fillStyle = `rgb(${pdColor.r}, ${pdColor.g}, ${pdColor.b})`;
+            ctx.fillRect(cx * cellWidth, cy * cellHeight, cellWidth, cellHeight);
+        }
+        
+        // Draw camera view rectangle
+        const container = document.getElementById('canvas-container');
+        aspect = container.clientWidth / container.clientHeight;
+        const halfHeight = cameraZoom / 2;
+        const halfWidth = halfHeight * aspect;
+        
+        const viewLeft = (cameraX - halfWidth) * cellWidth;
+        const viewTop = (cameraY - halfHeight) * cellHeight;
+        const viewWidth = (halfWidth * 2) * cellWidth;
+        const viewHeight = (halfHeight * 2) * cellHeight;
+        
+        // Fill camera view area
+        ctx.fillStyle = 'rgba(15, 76, 117, 0.3)';
+        ctx.fillRect(viewLeft, viewTop, viewWidth, viewHeight);
+        
+        // Border
+        ctx.strokeStyle = '#0f4c75';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(viewLeft, viewTop, viewWidth, viewHeight);
+        
+        // Highlight selected cell
+        if (selectedCell) {
+            const x = selectedCell.x * cellWidth;
+            const y = selectedCell.y * cellHeight;
+            
+            ctx.strokeStyle = '#ffff00';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, cellWidth, cellHeight);
+        }
+        
+        // Highlight tracked agent with a small marker dot
+        if (trackedAgentId !== null) {
+            const agent = viewportAgentStore.get(trackedAgentId) || agentStore.get(trackedAgentId);
+            if (agent) {
+                // Use float position if available, otherwise cell center
+                const floatPos = viewportFloatPositions.get(trackedAgentId);
+                let markerX, markerY;
+                if (floatPos) {
+                    markerX = floatPos.x * cellWidth;
+                    markerY = floatPos.y * cellHeight;
+                } else {
+                    // Center of the cell
+                    markerX = (Math.floor(agent.x) + 0.5) * cellWidth;
+                    markerY = (Math.floor(agent.y) + 0.5) * cellHeight;
+                }
+                
+                // Marker size: 25% of cell diameter, minimum 4px
+                const cellDiameter = Math.min(cellWidth, cellHeight);
+                const markerRadius = Math.max(2, cellDiameter * 0.125);  // radius = half of 25% diameter
+                
+                // Draw filled circle with black outline
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(markerX, markerY, markerRadius, 0, TWOPI);
+                ctx.closePath();
+                ctx.fillStyle = '#ffff00';
+                ctx.fill();
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    }
+    
+    // ============================================================
+    // Population Graph
+    // ============================================================
+    
+    function setupPopulationGraph() {
+        const container = document.getElementById('population-graph');
+        const canvas = document.getElementById('graph-canvas');
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight - 32; // Account for header
+    }
+    
+    function recordPopulationData(tick, [popM, popF]) {
+        // Only record if we have new data
+        if (populationHistory.ticks.length > 0 && 
+            populationHistory.ticks[populationHistory.ticks.length - 1] >= tick) {
+            return;
+        }
+        
+        populationHistory.ticks.push(tick);
+        populationHistory.m.push(popM);
+        populationHistory.f.push(popF);
+        
+        // Limit history to prevent memory issues (keep last 2000 points)
+        const maxPoints = 2000;
+        if (populationHistory.ticks.length > maxPoints) {
+            populationHistory.ticks.shift();
+            populationHistory.m.shift();
+            populationHistory.f.shift();
+        }
+    }
+    
+    function clearPopulationHistory() {
+        populationHistory.ticks = [];
+        populationHistory.m = [];
+        populationHistory.f = [];
+    }
+    
+    function clearHistogramData() {
+        for (const key of Object.keys(histogramData)) {
+            histogramData.m[key] = [];
+        }
+    }
+    
+    function renderPopulationGraph() {
+        const canvas = document.getElementById('graph-canvas');
+        const ctx = canvas.getContext('2d');
+        const headerTitle = document.querySelector('#population-graph .graph-header h4');
+        const legend = document.querySelector('#population-graph .graph-legend');
+        
+        const width = canvas.width;
+        const height = canvas.height;
+        const padding = { top: 10, right: 15, bottom: 25, left: 45 };
+        const graphWidth = width - padding.left - padding.right;
+        const graphHeight = height - padding.top - padding.bottom;
+        
+        const histogramColors = HISTO_COLORS[graphMode];
+        
+
+        // Clear canvas
+        ctx.fillStyle = '#0d0d1a';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Update title and legend based on mode
+        if (graphMode === 0) {
+            headerTitle.textContent = 'Population';
+            legend.innerHTML = `
+                <div class="legend-item"><div class="legend-dot m"></div><span>m</span></div>
+                <div class="legend-item"><div class="legend-dot f"></div><span>f</span></div>
+            `;
+            legend.style.display = 'flex';
+        } else if (graphMode === 1) {
+            headerTitle.textContent = `State (tick ${serverTick})`;
+            const labels = ['age', 'health', '#kin', 'happy', 'trust'];
+            legend.innerHTML = labels.map((label, i) => 
+                `<span style="color:${histogramColors[i]}">● </span>${label}`
+            ).join(' ');
+            legend.style.display = 'block';
+        } else if (graphMode === 2) {
+            headerTitle.textContent = `Personality (tick ${serverTick})`;
+            const labels = ['o', 'c', 'e', 'a', 'n'];
+            legend.innerHTML = labels.map((label, i) => 
+                `<span style="color:${histogramColors[i]}">● </span>${label}`
+            ).join(' ');
+            legend.style.display = 'block';
+        }  else if (graphMode === 3) {
+            headerTitle.textContent = `Race (tick ${serverTick})`;
+            const labels = ['race'];
+            legend.innerHTML = labels.map((label, i) => 
+                `<span style="color:${histogramColors[i]}">● </span>${label}`
+            ).join(' ');
+            legend.style.display = 'block';
+        }  else if (graphMode === 4) {
+            headerTitle.textContent = `Culture (tick ${serverTick})`;
+            const labels = ['clan', 'race'];
+            legend.innerHTML = labels.map((label, i) => 
+                `<span style="color:${histogramColors[i]}">● </span>${label}`
+            ).join(' ');
+            legend.style.display = 'block';
+        }
+
+        // Histogram rendering mode 
+        if (graphMode !== 0) {
+            const data = histogramData;
+            let keys = [];
+            if (graphMode === 1){
+                keys =  ['age', 'energy', 'kin', 'hap', 'trust'];
+            }
+            else if (graphMode === 2){
+                keys =  ['o', 'c', 'e', 'a', 'n'];
+            }
+            else if (graphMode === 3){
+                keys =  ['xeno'];
+            } 
+            else if (graphMode === 4){
+                keys =  ['kin_trait','xeno'];
+            }  
+                      
+            // Collect all histogram arrays that have data
+            const histograms = keys.map(key => data[key] || []);
+            
+            // Check if we have any data
+            const hasData = histograms.some(h => h.length >= 2);
+            if (!hasData) {
+                ctx.fillStyle = '#666';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Waiting for histogram data...', width / 2, height / 2);
+                return;
+            }
+            
+            // Find the maximum bin value across all histograms (skip index 0 which is the max/mean)
+            let maxBinValue = 1;
+            for (const hist of histograms) {
+                if (hist.length >= 2) {
+                    for (let i = 1; i < hist.length; i++) {
+                        if (hist[i] > maxBinValue) maxBinValue = hist[i];
+                    }
+                }
+            }
+
+            // Draw grid lines
+            ctx.strokeStyle = '#2a2a3e';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = padding.top + (i / 4) * graphHeight;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+            }
+            
+            // Draw axes
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, padding.top);
+            ctx.lineTo(padding.left, height - padding.bottom);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(padding.left, height - padding.bottom);
+            ctx.lineTo(width - padding.right, height - padding.bottom);
+            ctx.stroke();
+            
+            // Y axis labels
+            ctx.fillStyle = '#888';
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 4; i++) {
+                const value = Math.round(maxBinValue * (1 - i / 4));
+                const y = padding.top + (i / 4) * graphHeight;
+                ctx.fillText(value.toString(), padding.left - 5, y + 3);
+            }
+            
+            // Draw each histogram as a line
+            const numBins = 10;
+            const binWidth = graphWidth / numBins;
+            
+            for (let h = 0; h < histograms.length; h++) {
+                const hist = histograms[h];
+                if (hist.length < 2) continue;  // Skip empty histograms
+                
+                ctx.strokeStyle = histogramColors[h];
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                
+                for (let i = 1; i < hist.length && i <= numBins; i++) {
+                    const x = padding.left + (i - 0.5) * binWidth;  // Center of each bin
+                    const y = padding.top + graphHeight - (hist[i] / maxBinValue) * graphHeight;
+                    
+                    if (i === 1) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+            }
+            
+            // Draw max values (first element of each array) in top right corner
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'right';
+            const lineHeight = 12;
+            const startX = width - padding.right - 5;
+            const startY = padding.top + 10;
+            
+            for (let h = 0; h < histograms.length; h++) {
+                const hist = histograms[h];
+                if (hist.length >= 1) {
+                    ctx.fillStyle = histogramColors[h];
+                    const maxVal = hist[0];
+                    // Format: show 1 decimal for floats, none for integers
+                    const formatted = (maxVal % 1 === 0) ? maxVal.toString() : maxVal.toFixed(1);
+                    ctx.fillText(formatted, startX, startY + h * lineHeight);
+                }
+            }
+            
+            return;
+        }
+        
+        // Mode 0: Population time series graph
+        
+        // If no data, show message
+        if (populationHistory.ticks.length < 2) {
+            ctx.fillStyle = '#666';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Waiting for data...', width / 2, height / 2);
+            return;
+        }
+        
+        // Calculate scales
+        const minTick = populationHistory.ticks[0];
+        const maxTick = populationHistory.ticks[populationHistory.ticks.length - 1];
+        const maxM = Math.max(...populationHistory.m);
+        const maxF = Math.max(...populationHistory.f);
+        const maxPop = Math.max(maxM, maxF, 1);
+        
+        // Add 10% headroom to y-axis
+        const yMax = Math.ceil(maxPop * 1.1);
+        
+        // Helper functions
+        const xScale = (tick) => padding.left + ((tick - minTick) / (maxTick - minTick || 1)) * graphWidth;
+        const yScale = (pop) => padding.top + graphHeight - (pop / yMax) * graphHeight;
+        
+        // Draw grid lines
+        ctx.strokeStyle = '#2a2a3e';
+        ctx.lineWidth = 1;
+        
+        // Horizontal grid lines (5 lines)
+        for (let i = 0; i <= 4; i++) {
+            const y = padding.top + (i / 4) * graphHeight;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+        }
+        
+        // Draw axes
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 1;
+        
+        // Y axis
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, height - padding.bottom);
+        ctx.stroke();
+        
+        // X axis
+        ctx.beginPath();
+        ctx.moveTo(padding.left, height - padding.bottom);
+        ctx.lineTo(width - padding.right, height - padding.bottom);
+        ctx.stroke();
+        
+        // Draw labels
+        ctx.fillStyle = '#888';
+        ctx.font = '10px monospace';
+        
+        // Y axis labels
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+            const value = Math.round(yMax * (1 - i / 4));
+            const y = padding.top + (i / 4) * graphHeight;
+            ctx.fillText(value.toString(), padding.left - 5, y + 3);
+        }
+        
+        // X axis labels
+        ctx.textAlign = 'center';
+        ctx.fillText(minTick.toString(), padding.left, height - 5);
+        ctx.fillText(maxTick.toString(), width - padding.right, height - 5);
+        
+        // Draw m line (blue)
+        ctx.strokeStyle = '#4C50AF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < populationHistory.ticks.length; i++) {
+            const x = xScale(populationHistory.ticks[i]);
+            const y = yScale(populationHistory.m[i]);
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+        
+        // Draw f line (red)
+        ctx.strokeStyle = '#f44336';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < populationHistory.ticks.length; i++) {
+            const x = xScale(populationHistory.ticks[i]);
+            const y = yScale(populationHistory.f[i]);
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+    }
+    
+    function startGraphUpdates() {
+        if (graphUpdateInterval) return;
+        graphUpdateInterval = setInterval(() => {
+            renderPopulationGraph();
+            updateTrackedAgent();  // Update tracked agent popup if open
+        }, 1000);
+    }
+    
+    function stopGraphUpdates() {
+        if (graphUpdateInterval) {
+            clearInterval(graphUpdateInterval);
+            graphUpdateInterval = null;
+        }
+    }
+    
+    // ============================================================
+    // Viewport Polling (HTTP)
+    // ============================================================
+    
+    async function fetchViewportData() {
+        if (!viewportPollingActive) return;
+        
+        // Guard against overlapping requests
+        if (viewportFetchInFlight) {
+            console.warn('[Viewport] Skipping fetch - previous request still in flight');
+            return;
+        }
+        viewportFetchInFlight = true;
+        
+        const startTime = performance.now();
+        const cx = viewportCenter[0];
+        const cy = viewportCenter[1];
+        const r = viewportRadius;
+        
+        try {
+            const url = `${HTTP_URL}/viewport?center=${cx}_${cy}&r=${r}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 100)}`);
+            }
+            
+            const data = await response.json();
+            
+            const endTime = performance.now();
+            const rtt = endTime - startTime;
+            
+            viewportRTT.push(rtt);
+            if (viewportRTT.length > 10) viewportRTT.shift();
+            
+            const avgRTT = viewportRTT.reduce((a, b) => a + b, 0) / viewportRTT.length;
+            
+            const rttClass = avgRTT < 30 ? 'good' : avgRTT < 80 ? 'warn' : 'bad';
+            document.getElementById('stat-viewport-rtt').textContent = `${avgRTT.toFixed(0)}ms`;
+            document.getElementById('stat-viewport-rtt').className = `stat-value ${rttClass}`;
+            
+            // If no agents array or empty, treat as failed/stale response and keep existing cache
+            if (!data.entities || data.entities.length === 0) {
+                console.warn('[Viewport] Empty response (no entities array), keeping existing cache');
+                return; // Skip store update, polling rescheduled in finally block
+            }
+            
+            // Debug: Log counts to diagnose agent vs cell count (map cells are 'entities' with entity.map=1)
+            let agentCount = 0;
+            let cellCount = 0;
+            for (const entity of data.entities) {
+                if (entity.map == 1) {
+                    cellCount++;
+                } else {
+                    agentCount++;
+                }
+            }
+            //debugging message to see if the server is sending too much information, not needed for now (it's probably fine)
+            //console.log(`[Viewport] Server count: ${data.count}, Array length: ${data.entities.length}, Agents: ${agentCount}, Cells: ${cellCount}`);
+            
+            // Display actual agent count (not cells)
+            document.getElementById('stat-viewport-agents').textContent = agentCount;
+
+	    //update server tick if received
+	    if (data.tick !== undefined) {
+	        serverTick = data.tick;
+	    }
+            
+            // Build a map of new agent positions for comparison
+            const newAgentPositions = new Map();
+            for (const entity of data.entities) {
+                if (entity.map == undefined) {
+                    newAgentPositions.set(entity.id, { x: entity.x, y: entity.y });
+                }
+            }
+            
+            // Store previous positions only if they differ from new positions
+            for (const [id, agent] of viewportAgentStore) {
+                const newPos = newAgentPositions.get(id);
+                if (newPos && (agent.x !== newPos.x || agent.y !== newPos.y)) {
+                    lastKnownPositions.set(id, { x: agent.x, y: agent.y });
+                }
+            }
+            
+            viewportAgentStore.clear();
+            //CellsStore.clear();
+            for (const entity of data.entities) {
+                if (entity.map) {
+                    // Map cell 
+                    const cellKey = `${entity.x},${entity.y}`;
+                    CellsStore.set(cellKey, { x: entity.x, y: entity.y, pd: entity.pd, food: entity.food});
+                    pdCache.set(cellKey, entity.pd);
+                } else {
+                    // Agent 
+                    viewportAgentStore.set(entity.id, entity);
+                }
+            }
+            
+        } catch (err) {
+            console.error('[Viewport] Fetch error:', err);
+        } finally {
+            viewportFetchInFlight = false;
+            
+            // Always reschedule next poll (even on error or empty response)
+            if (viewportPollingActive) {
+                const pollRate = parseInt(document.getElementById('poll-rate').value);
+                const intervalMs = Math.floor(1000 / pollRate);
+                viewportPollTimeoutId = setTimeout(fetchViewportData, intervalMs);
+            }
+        }
+    }
+    
+    function startViewportPolling() {
+        if (viewportPollingActive) return;
+        
+        viewportPollingActive = true;
+        updateViewportParams();
+        
+        const pollRate = parseInt(document.getElementById('poll-rate').value);
+        log(`Viewport polling started at ${pollRate}fps`, 'info');
+        
+        fetchViewportData();
+    }
+    
+    function stopViewportPolling() {
+        if (!viewportPollingActive) return;
+        
+        viewportPollingActive = false;
+        viewportFetchInFlight = false;
+        if (viewportPollTimeoutId) {
+            clearTimeout(viewportPollTimeoutId);
+            viewportPollTimeoutId = null;
+        }
+        
+        viewportAgentStore.clear();
+        CellsStore.clear();
+        pdCache.clear();
+        viewportRTT = [];
+        
+        document.getElementById('stat-viewport-rtt').textContent = '-';
+        document.getElementById('stat-viewport-agents').textContent = '0';
+    }
+    
+    function updateViewportDisplay() {
+        document.getElementById('stat-viewport-center').textContent = 
+            `(${viewportCenter[0]}, ${viewportCenter[1]})`;
+        document.getElementById('stat-viewport-zoom').textContent = 
+            `${cameraZoom.toFixed(1)} cells (r=${viewportRadius})`;
+    }
+    
+    // ============================================================
+    // Parameter Editor
+    // ============================================================
+    
+    function flattenParams(obj, prefix = '') {
+        const result = {};
+        for (const [key, value] of Object.entries(obj)) {
+            const fullKey = prefix ? `${prefix}.${key}` : key;
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                Object.assign(result, flattenParams(value, fullKey));
+            } else {
+                result[fullKey] = value;
+            }
+        }
+        return result;
+    }
+    
+    async function fetchAndPopulateParams() {
+        try {
+            const response = await fetch(`${HTTP_URL}/params`);
+            const data = await response.json();
+            
+            simulationParams = flattenParams(data);
+                    
+            const select = document.getElementById('param-select');
+            select.innerHTML = '<option value="">-- Select parameter --</option>';
+            
+            const categories = {};
+            for (const key of Object.keys(simulationParams).sort()) {
+                const [category] = key.split('.');
+                if (!categories[category]) categories[category] = [];
+                categories[category].push(key);
+            }
+            
+            for (const [category, keys] of Object.entries(categories)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = category.charAt(0).toUpperCase() + category.slice(1);
+                for (const key of keys) {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = key;
+                    optgroup.appendChild(option);
+                }
+                select.appendChild(optgroup);
+            }
+            
+            document.getElementById('param-status').textContent = `${Object.keys(simulationParams).length} params`;
+            log(`Loaded ${Object.keys(simulationParams).length} parameters`, 'info');
+            
+        } catch (err) {
+            log(`Failed to load params: ${err.message}`, 'error');
+            document.getElementById('param-status').textContent = 'Error';
+        }
+    }
+    
+    function onParamSelect(event) {
+        const key = event.target.value;
+        const valueInput = document.getElementById('param-value');
+        
+        if (key && key in simulationParams) {
+            valueInput.value = simulationParams[key];
+        } else {
+            valueInput.value = '';
+        }
+    }
+    
+    async function setParameter() {
+        const key = document.getElementById('param-select').value;
+        const valueStr = document.getElementById('param-value').value;
+        
+        if (!key) {
+            log('Select a parameter first', 'warn');
+            return;
+        }
+        
+        let value;
+        const numValue = parseFloat(valueStr);
+        if (!isNaN(numValue)) {
+            value = numValue;
+        } else {
+            value = valueStr;
+        }
+        
+        try {
+            const response = await fetch(`${HTTP_URL}/set_param`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: key, value: value })
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'error') {
+                document.getElementById('param-status').textContent = 'Error';
+                document.getElementById('param-status').className = 'stat-value bad';
+                log(`Set param failed: ${data.message}`, 'error');
+            } else {
+                simulationParams[key] = data.new_value;
+                document.getElementById('param-value').value = data.new_value;
+                document.getElementById('param-status').textContent = 'Set OK';
+                document.getElementById('param-status').className = 'stat-value good';
+                log(`Set ${key}: ${data.old_value} → ${data.new_value}`, 'info');
+            }
+        } catch (err) {
+            document.getElementById('param-status').textContent = 'Error';
+            document.getElementById('param-status').className = 'stat-value bad';
+            log(`Set param failed: ${err.message}`, 'error');
+        }
+    }
+
+    // Send a command to the server (modeled on setParameter)
+    async function sendCommand(key, value) {
+        try {
+            const response = await fetch(`${HTTP_URL}/set_param`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: key, value: value })
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'error') {
+                log(`Command failed: ${data.message}`, 'error');
+            } else {
+                log(`Command ${key}: ${JSON.stringify(value)} → OK`, 'info');
+            }
+        } catch (err) {
+            log(`Command failed: ${err.message}`, 'error');
+        }
+    }
+
+    // ============================================================
+    // Logging
+    // ============================================================
+    function log(message, level = 'info') {
+        const logEl = document.getElementById('log');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${level}`;
+        const time = new Date().toLocaleTimeString();
+        entry.textContent = `[${time}] ${message}`;
+        logEl.appendChild(entry);
+        logEl.scrollTop = logEl.scrollHeight;
+        while (logEl.children.length > 100) {
+            logEl.removeChild(logEl.firstChild);
+        }
+    }
+
+    // ============================================================
+    // HTTP API (Commands)
+    // ============================================================
+    async function httpCall(endpoint, method = 'GET', body = null) {
+        const options = {
+            method,
+            headers: { 'Content-Type': 'application/json' }
+        };
+        if (body) options.body = JSON.stringify(body);
+        const response = await fetch(HTTP_URL + endpoint, options);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    }
+
+    async function initWorld() {
+        try {
+            const data = await httpCall('/init', 'POST', {});
+            worldWidth = data.width;
+            worldHeight = data.height;
+            const [popM, popF] = data.counts || [0, 0];
+            log(`Initialized: population m ${popM}, f ${popF}`, 'info');
+            
+            // Clear all agent data caches
+            agentStore.clear();
+            viewportAgentStore.clear();
+            CellsStore.clear();
+            viewportFloatPositions.clear();
+            pdCache.clear();
+            lastUpdateTick = 0;
+            
+            // Reset pause state
+            simulationPausedAt = null;
+
+            wsConnect(); // connect to ws automatically if not already connected
+            
+            
+            // Clear population history for graph
+            clearPopulationHistory();
+            
+            // Reset camera to center, zoom to fit map
+            cameraX = worldWidth / 2;
+            cameraY = worldHeight / 2;
+            cameraZoom = Math.min(MAX_ZOOM, Math.max(worldWidth, worldHeight));
+            updateViewportParams();
+            
+            // Recreate ground and grid for new world size
+            if (groundMesh) {
+                scene.remove(groundMesh);
+                groundMesh.geometry.dispose();
+                groundMesh.material.dispose();
+                
+                const groundGeometry = new THREE.PlaneGeometry(worldWidth, worldHeight);
+                const groundMaterial = new THREE.MeshBasicMaterial({ 
+                    color: COLOR_GRID,
+                    side: THREE.DoubleSide
+                });
+                groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+                groundMesh.rotation.x = NEG_HALF_PI;
+                groundMesh.position.set(worldWidth / 2, 0, worldHeight / 2);
+                scene.add(groundMesh);
+            }
+            createGridLines();
+
+            await fetchAndPopulateParams();
+            
+            startViewportPolling();
+            
+            if (wsConnected) {
+                wsSend({ type: 'subscribe' });
+            }
+        } catch (error) {
+            log(`Init failed: ${error.message}`, 'error');
+        }
+    }
+
+    async function startSimulation() {
+        try {
+            await httpCall('/start', 'POST', { ticks_per_second: 100 });
+            document.getElementById('btn-start').disabled = true;
+            document.getElementById('btn-stop').disabled = false;
+            simulationPausedAt = null;  // Clear pause state
+            log('Simulation started', 'info');
+            wsConnect(); // connect to ws automatically if not already connected
+        } catch (error) {
+            log(`Start failed: ${error.message}`, 'error');
+        }
+    }
+
+    async function stopSimulation() {
+        try {
+            await httpCall('/stop', 'POST');
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-stop').disabled = true;
+            simulationPausedAt = Date.now();  // Record when simulation was paused
+            log('Simulation stopped', 'info');
+        } catch (error) {
+            log(`Stop failed: ${error.message}`, 'error');
+        }
+    }
+
+    async function stepSimulation(steps = 1) {
+        try {
+            const data = await httpCall('/step', 'POST', { steps });
+            const count = data.counts || [0];
+            document.getElementById('stat-m').textContent = count[0];
+            document.getElementById('stat-f').textContent = count[1];
+            // Record for population graph
+            recordPopulationData(data.tick, [popM, popF]);
+            simulationPausedAt = Date.now();  // Mark as paused but reset timestamp
+            log(`Stepped ${steps}: tick=${data.tick}`, 'info');
+        } catch (error) {
+            log(`Step failed: ${error.message}`, 'error');
+        }
+    }
+
+    // ============================================================
+    // WebSocket (Streaming)
+    // ============================================================
+    
+    function wsConnect() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            log('Already connected', 'warn');
+            return;
+        }
+        
+        setConnectionStatus('connecting');
+        ws = new WebSocket(WS_URL);
+        
+        ws.onopen = () => {
+            wsConnected = true;
+            setConnectionStatus('connected');
+            log('WebSocket connected', 'ws');
+            
+            wsSend({ type: 'subscribe' });
+            
+            document.getElementById('btn-connect').disabled = true;
+            document.getElementById('btn-disconnect').disabled = false;
+        };
+        
+        ws.onclose = () => {
+            wsConnected = false;
+            setConnectionStatus('disconnected');
+            log('WebSocket disconnected', 'ws');
+            document.getElementById('btn-connect').disabled = false;
+            document.getElementById('btn-disconnect').disabled = true;
+        };
+        
+        ws.onerror = (error) => {
+            log('WebSocket error', 'error');
+        };
+        
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            handleMessage(msg);
+            messageCount++;
+        };
+    }
+    
+    function sendFlowControl() {
+        const lag = serverTick - lastUpdateTick;
+        wsSend({ type: 'flow_control', queue_depth: lag });
+    }
+    
+    function wsDisconnect() {
+        if (ws) {
+            wsSend({ type: 'unsubscribe' });
+            ws.close();
+            ws = null;
+        }
+    }
+    
+    function wsSend(msg) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(msg));
+        }
+    }
+    
+    function setConnectionStatus(status) {
+        const el = document.getElementById('connection-status');
+        el.className = status;
+        el.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    }
+    
+    function handleMessage(msg) {
+        switch (msg.type) {
+            case 'snapshot':
+                // Build a map of new agent positions for comparison
+                const snapshotPositions = new Map();
+                for (const agent of msg.entities) {
+                    if (agent.map !== 1) {  // Skip cells
+                        snapshotPositions.set(agent.id, { x: agent.x, y: agent.y });
+                    }
+                }
+    
+                // Store previous positions only if they differ from new positions
+                for (const [id, agent] of agentStore) {
+                    const newPos = snapshotPositions.get(id);
+                    if (newPos && (agent.x !== newPos.x || agent.y !== newPos.y)) {
+                        lastKnownPositions.set(id, { x: agent.x, y: agent.y });
+                    }
+                }
+    
+                agentStore.clear();
+                for (const entity of msg.entities) {
+                    if (entity.map === 1) {
+                        // Map cell
+                        const cellKey = `${entity.x},${entity.y}`;
+                        CellsStore.set(cellKey, { x: entity.x, y: entity.y, pd: entity.pd, food: entity.food});
+                        pdCache.set(cellKey, entity.pd);
+                    } else {
+                        // Agent
+                        agentStore.set(entity.id, entity);
+                    }
+                }
+                worldWidth = msg.world?.width || worldWidth;
+                worldHeight = msg.world?.height || worldHeight;
+                lastUpdateTick = msg.tick;
+                agentUpdateCount += msg.entities.length;
+                log(`Snapshot: ${msg.entities.length} entities (server has ${msg.total_entities})`, 'ws');
+                break;
+            
+            case 'delta':
+                for (const agent of (msg.entities || [])) {
+		    //check for despawn notice
+		    if (agent.dead){
+                	agentStore.delete(agent.id);
+                	lastKnownPositions.delete(agent.id);
+                	viewportFloatPositions.delete(agent.id);
+
+		    }
+		    else if (agent.map === 1) { //map cell update
+        		const cellKey = `${agent.x},${agent.y}`;
+                	pdCache.set(cellKey, agent.pd);
+                	CellsStore.set(cellKey, { x: agent.x, y: agent.y, pd: agent.pd, food: agent.food});
+		    } 
+		    else{
+                        // Store previous position only if it differs from new position
+                        const existing = agentStore.get(agent.id);
+                        if (existing && (existing.x !== agent.x || existing.y !== agent.y)) {
+                            lastKnownPositions.set(agent.id, { x: existing.x, y: existing.y });
+                        }
+                        agentStore.set(agent.id, agent);
+                    }
+                }
+                lastUpdateTick = msg.tick;
+                agentUpdateCount += (msg.entities?.length || 0);
+                break;
+            
+            case 'stats':
+                serverTick = msg.tick;
+                document.getElementById('stat-server-tick').textContent = msg.tick;
+                const count = msg.counts || [0, 0];
+                document.getElementById('stat-m').textContent = count[0];
+                document.getElementById('stat-f').textContent = count[1];
+                // Record for population graph
+                recordPopulationData(msg.tick, count);
+                
+                // Extract histogram data if present
+                if (msg.histograms) {
+                  
+                        for (const [key, values] of Object.entries(msg.histograms)) {
+                            if (histogramData.hasOwnProperty(key)) {
+                                histogramData[key] = values;
+                            } else {
+                                // Handle unexpected properties dynamically
+                                histogramData[key] = values;
+                            }
+                        }
+                    
+
+                }
+                break;
+            
+            case 'entity_detail':
+                if (msg.entity) {
+                    inspectCell(Math.floor(msg.entity.x), Math.floor(msg.entity.y));
+                } else {
+                    log(`Agent ${msg.id} not found`, 'warn');
+                }
+                break;
+            
+            case 'error':
+                log(`Server error: ${msg.message}`, 'error');
+                break;
+        }
+    }
+    
+    // Selected cell for inspection highlight
+    let selectedCell = null;  // {x, y} or null
+    
+    // Tracked agent for live updates
+    let trackedAgentId = null;  // agent ID or null
+    
+    // Collect agent IDs at a given cell from both stores
+    function getAgentIdsAtCell(cellX, cellY) {
+        const agentIds = new Set();
+        
+        for (const a of agentStore.values()) {
+            if (Math.floor(a.x) === cellX && Math.floor(a.y) === cellY) {
+                agentIds.add(a.id);
+            }
+        }
+        
+        for (const a of viewportAgentStore.values()) {
+            if (Math.floor(a.x) === cellX && Math.floor(a.y) === cellY) {
+                agentIds.add(a.id);
+            }
+        }
+        
+        return Array.from(agentIds);
+    }
+    
+    // Format agent internal state as a string (shared by inspectCell and updateTrackedAgent)
+    // Fields excluded from formatting: id, x, y, tick (these are shown elsewhere)
+    function formatAgentState(agent, tick) {
+        const parts = [];
+        
+        // 1. Age, sex
+        if (agent.born !== undefined) {
+            const age = Math.floor(getAge(agent.born));
+            parts.push(`<b>${age}</b>`);
+        }
+        if (agent.sex !== undefined) {
+            const sexchar = agent.sex ? '♀':'♂';
+            parts.push(`<b>${sexchar}</b><br/>`);
+        }
+	            
+        // 2. health + mood 
+        if (agent.energy !== undefined) {
+            const health = Math.floor(agent.energy*10);
+            parts.push(`health ${health} `);
+        }
+        if (agent.hap !== undefined) {
+
+            const happiness = Math.floor(agent.hap*100);
+            const trust = Math.floor(agent.trust*100);
+            const moodIcon = EMOJIS[emojiId(trust, happiness)];
+            parts.push(`${moodIcon} ${happiness}/${trust}.<br/>`);
+        }
+                
+        // 4. Genealogy
+        if (agent.parent !== undefined) {
+            parents = SYLLABIC ? (toSyllabic(agent.parent[0])+' & '+ toSyllabic(agent.parent[1])) : '['+agent.parent.join(', ')+']';
+            parts.push(`parents: ${parents},`);
+            }
+        
+        if (agent.spouse !== undefined && agent.spouse !== -1) {
+	    const spouse =  SYLLABIC? toSyllabic(agent.spouse) : agent.spouse;
+            parts.push(`spouse: ${spouse},`);
+        }
+
+        if (agent.offspring !== undefined && Array.isArray(agent.offspring) && agent.offspring.length > 0) {
+            const offspring = SYLLABIC ? (agent.offspring.length+' ('+syllabicArr(agent.offspring).join(', ')+')') : (agent.offspring.length + ' ['+agent.offspring.join(', ')+']');
+            parts.push(`children: ${offspring},`);
+        }
+
+	if (agent.n_kin !== undefined) {
+            parts.push(`kin: ${agent.n_kin}.<br/>`);
+        }
+        
+	//5. Big 5 traits	
+	if (agent.o !== undefined) {
+            parts.push(`O:${Math.floor(agent.o*100)} C:${Math.floor(agent.c*100)} E:${Math.floor(agent.e*100)} A:${Math.floor(agent.a*100)} N:${Math.floor(agent.n*100)}`);
+        }
+        
+        //6. Ingroup focus
+        if (agent.kin !== undefined) {
+            parts.push(`ingroup: kin:${Math.floor(agent.kin*100)} race:${Math.floor(agent.xeno*100)}<br/>`);
+        }
+
+        // 7. Identity
+        if (agent.genes !== undefined) {
+            parts.push(`race: ${Math.floor(agent.genes[0]*10)}/${Math.floor(agent.genes[1]*10)}/${Math.floor(agent.genes[2]*10)}<br/>`);
+        }
+        if (agent.culture !== undefined) {
+            parts.push(`culture: ${Math.floor(agent.culture[0]*10)}/${Math.floor(agent.culture[1]*10)}/${Math.floor(agent.culture[2]*10)}`);
+        }        
+
+/*
+        // 8. Any other unexpected fields
+        const knownFields = new Set([
+            'id', 'sex', 'x', 'y', 'tick', 'born', 'energy', 'hap', 'trust',
+            'parent', 'spouse', 'offspring', 'n_kin', 
+            'o','c','e','a','n',
+            'kin', 'xeno', 'genes', 'culture'
+        ]);
+        for (const [key, value] of Object.entries(agent)) {
+            if (!knownFields.has(key)) {
+                let formattedValue;
+                if (typeof value === 'number') {
+                    formattedValue = Number.isInteger(value) ? value : value.toFixed(2);
+                } else if (Array.isArray(value)) {
+                    formattedValue = `[${value.join(', ')}]`;
+                } else {
+                    formattedValue = value ?? '?';
+                }
+                parts.push(`${key}: ${formattedValue}`);
+            }
+        }
+*/        
+        return parts.join(' ');
+    }
+
+    function rad_to_deg_str(angle) {
+      // angle in radians, in [-Math.PI, Math.PI], convert to string in degrees +"°"
+      let degInt = (Math.round(angle * DEG_PER_RAD) + 450) % 360;
+      return degInt + "°";
+    }
+
+    // Fetch full agent data from server
+    async function fetchAgentDetail(agentId) {
+        const renameMap = {
+//obsolete!
+//          gn: 'genes',          
+        };
+        
+        try {
+            const response = await fetch(`${HTTP_URL}/inspect/${agentId}`);
+            const data = await response.json();
+
+	    const agent = data.entity || null;
+	    if (!agent) return null;
+
+	    // Create a new object with renamed keys
+	    const renamed = Object.fromEntries(
+	      Object.entries(agent).map(([key, value]) =>
+	        [renameMap[key] ?? key, value]
+	      )
+	    );
+
+	    return renamed;
+
+        } catch (err) {
+            console.error(`[INSPECT] Failed to fetch agent ${agentId}:`, err);
+            return null;
+        }
+    }
+    
+    // Main inspect function - called when shift+clicking
+    async function inspectCell(cellX, cellY) {
+        // Close any existing popup first
+        closeInspectPopup();
+        
+        // Set selected cell for highlighting (after closeInspectPopup clears it)
+        selectedCell = { x: cellX, y: cellY };
+        
+        const popup = document.getElementById('inspect-popup');
+        const content = popup.querySelector('.popup-content');
+        const cellCoordsSpan = popup.querySelector('.cell-coords');
+        const cellTickSpan = popup.querySelector('.cell-tick');
+	let cellFood = 0;
+
+        for (const cell of CellsStore.values()) {
+                if (cell.x == cellX && cell.y == cellY){
+                cellFood = cell.food;
+                break;
+                }
+        }
+        
+        // Set header info
+        cellCoordsSpan.textContent = `(${cellX}, ${cellY}): ${cellFood}`;
+        cellTickSpan.textContent = '(loading...)';
+        
+        // Show popup immediately with loading state
+        content.innerHTML = '<div class="loading">Fetching agent data...</div>';
+        popup.classList.add('visible');
+        
+        // Get all agent IDs at this cell
+        const agentIds = getAgentIdsAtCell(cellX, cellY);
+        
+        if (agentIds.length === 0) {
+            content.innerHTML = `<div class="button-row" style="margin-bottom: 10px;">
+                <button onclick="sendCommand('breeding_pair', [${cellX}, ${cellY}])">Spawn Pair</button>
+            </div>
+            <div class="empty-cell">No agents in this cell</div>`;
+            cellTickSpan.textContent = '';
+            return;
+        }
+        
+        // Fetch full data for all agents in parallel
+        const agentPromises = agentIds.map(id => fetchAgentDetail(id));
+        const agentResults = await Promise.all(agentPromises);
+        
+        // Filter out failed fetches and collect valid agents
+        const agents = agentResults.filter(a => a !== null);
+        
+        if (agents.length === 0) {
+            content.innerHTML = '<div class="empty-cell">Failed to fetch agent data</div>';
+            cellTickSpan.textContent = '';
+            return;
+        }
+        
+        // Get tick from first agent's response (they should all be same tick)
+        const tick = agents[0].tick !== undefined ? agents[0].tick : serverTick;
+        cellTickSpan.textContent = `(tick ${tick})`;
+        
+        // Sort by id
+        agents.sort((a, b) => {
+            return a.id - b.id;
+        });
+        
+        // Build agent list HTML
+        let agentsHtml = '';
+        
+        // Add spawn buttons at the top
+        agentsHtml += `<div class="button-row" style="margin-bottom: 10px;">
+            <button onclick="sendCommand('breeding_pair', [${cellX}, ${cellY}])">Spawn Pair</button>
+        </div>`;
+        
+        for (const a of agents) {
+            const ageYears = getAge(a.born);
+//	    const icon = a.sex ? FEMALE_ICON : MALE_ICON;
+		const icon = (
+		    ageYears< CHILDHOOD? INFANT_ICON : (
+		        ageYears < ADOLESCENCE? (a.sex? GIRL_ICON : BOY_ICON):
+		            (ageYears < SENESCENCE? (a.sex? WOMAN_ICON : MAN_ICON): 
+		                (a.sex? GRANNY_ICON : GRAMPS_ICON)
+		            )
+		    )
+		);
+            const isSelected = false;
+            
+            // Use shared function to format internal state
+            const internalState = formatAgentState(a, tick);
+            const name = SYLLABIC? toSyllabic(a.id) : a.id;
+            agentsHtml += `<div class="agent-row ${isSelected ? 'selected' : ''}" onclick="trackAgent(${a.id})">
+                <div class="agent-left">
+                    <span class="agent-icon">${icon}</span>
+                    <span class="agent-id">${name}</span>
+                </div>
+                <span class="agent-info">
+                    <span class="agent-internal-state">${internalState}</span>
+                </span>
+            </div>`;
+        }
+        
+        content.innerHTML = agentsHtml;
+        
+        // Log to console for debugging
+        console.log('[INSPECT] Cell', cellX, cellY, '- Agents:', agents);
+    }
+    
+    // Called from click handlers - initiates the inspection
+    function closeInspectPopup() {
+        const popup = document.getElementById('inspect-popup');
+        popup.classList.remove('visible');
+        selectedCell = null;  // Remove the cell highlight marker
+    }
+    
+    // Track a specific agent with live updates
+    function trackAgent(agentId) {
+        trackedAgentId = agentId;
+        
+        const popup = document.getElementById('track-agent');
+        const header = popup.querySelector('.popup-header');
+        const titleSpan = popup.querySelector('.track-title');
+        const content = popup.querySelector('.popup-content');
+        
+
+        titleSpan.textContent = `${agentId}`;
+        
+        // Show loading state
+        content.innerHTML = '<div style="color: #888; font-style: italic;">Loading...</div>';
+        popup.classList.add('visible');
+        
+        // Trigger immediate update
+        updateTrackedAgent();
+        
+        console.log('[TRACK] Now tracking', agentId);
+    }
+    
+    function closeTrackAgent() {
+        const popup = document.getElementById('track-agent');
+        popup.classList.remove('visible');
+        trackedAgentId = null;
+    }
+    
+    async function updateTrackedAgent() {
+        if (trackedAgentId === null) return;
+        
+        const popup = document.getElementById('track-agent');
+        const inspectPopup = document.getElementById('inspect-popup');
+        const titleSpan = popup.querySelector('.track-title');
+        const content = popup.querySelector('.popup-content');
+        
+        // Reposition track-agent if inspect-popup is closed
+        if (inspectPopup.classList.contains('visible')) {
+            popup.style.left = '320px';  // To the right of inspect-popup
+        } else {
+            popup.style.left = '20px';   // Top-left corner
+        }
+        
+        try {
+            const agent = await fetchAgentDetail(trackedAgentId);
+            
+            if (!agent) {
+                // Agent no longer exists (died)
+                titleSpan.textContent = `${SKULL_ICON} ${trackedAgentId} (dead)`;
+                content.innerHTML = '<div class="agent-dead">Agent no longer exists</div>';
+                return;
+            }
+            
+            // Update title with current tick
+	    //const sexicon = agent.sex === 0 ? MALE_ICON : FEMALE_ICON;	    
+	    const ageYears = getAge(agent.born);
+	    const icon = (
+	        ageYears< CHILDHOOD? INFANT_ICON : (
+		    ageYears < ADOLESCENCE? (agent.sex? GIRL_ICON : BOY_ICON):
+		        (ageYears < SENESCENCE? (agent.sex? WOMAN_ICON : MAN_ICON): 
+		            (agent.sex? GRANNY_ICON : GRAMPS_ICON)
+		        )
+		)
+	    );
+	    
+            const tick = agent.tick !== undefined ? agent.tick : serverTick;
+	    const name = SYLLABIC? toSyllabic(agent.id) : agent.id;
+            titleSpan.textContent = `${icon} ${name}, tick ${tick}`;
+            
+            // Build fields display
+            let fieldsHtml = '';
+            
+            // Show position first (separate line since it's not in formatAgentState)
+            fieldsHtml += `<div class="agent-field">
+                <span class="field-name">position</span>
+                <span class="field-value">(${agent.x.toFixed(2)}, ${agent.y.toFixed(2)})</span>
+            </div>`;
+            
+            // Use shared function for internal state
+            const internalState = formatAgentState(agent, tick);
+            fieldsHtml += `<div class="agent-field">
+                <span class="field-name">state</span>
+                <span class="field-value agent-internal-state">${internalState}</span>
+            </div>`;
+            
+            // Add action buttons at the bottom
+            fieldsHtml += `<div class="button-row" style="margin-top: 10px;">
+                <button class="danger" onclick="sendCommand('kill_agent', ${agent.id})">Kill</button>
+                <button onclick="sendCommand('boost_agent', ${agent.id})">Boost</button>
+                <button onclick="sendCommand('clone_agent', ${agent.id})">Clone</button>
+            </div>`;
+            
+            content.innerHTML = fieldsHtml;
+            
+        } catch (err) {
+            console.error('[TRACK] Update error:', err);
+        }
+    }
+
+    function getAge(born){
+        return (serverTick - born)* TICK_YEARS;
+    }
+
+    // ============================================================
+    // Rendering & Stats
+    // ============================================================
+    
+    function updateStatsDisplay() {
+        document.getElementById('stat-local').textContent = agentStore.size;
+        document.getElementById('stat-last-tick').textContent = lastUpdateTick;
+        
+        updateViewportDisplay();
+        
+        const now = Date.now();
+        if (now - lastPerfTime >= 1000) {
+            document.getElementById('stat-ups').textContent = messageCount;
+            document.getElementById('stat-aps').textContent = agentUpdateCount;
+            document.getElementById('stat-fps').textContent = frameCount;
+            messageCount = 0;
+            agentUpdateCount = 0;
+            frameCount = 0;
+            lastPerfTime = now;
+        }
+    }
+    
+    let renderLoopCount = 0;
+    
+    function renderLoop() {
+        renderLoopCount++;
+        
+        // Process keyboard input every frame
+        processInput();
+        
+        if (renderLoopCount % 500 === 0) {
+            console.log(`[renderLoop] frame=${renderLoopCount}, agents=${agentStore.size}, viewport=${viewportAgentStore.size}`);
+        }
+        
+        if (renderLoopCount % 30 === 0 && wsConnected) {
+            sendFlowControl();
+        }
+        
+        renderThreeJS();
+        renderMinimap();
+        updateStatsDisplay();
+        frameCount++;
+        requestAnimationFrame(renderLoop);
+    }
+
+    // ============================================================
+    // Click Handlers
+    // ============================================================
+    
+    function handleMinimapClick(event) {
+        const canvas = document.getElementById('minimap-canvas');
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        const worldX = (x / canvas.width) * worldWidth;
+        const worldY = (y / canvas.height) * worldHeight;
+        
+        if (event.shiftKey) {
+            // Shift+click: inspect cell
+            const cellX = Math.floor(worldX);
+            const cellY = Math.floor(worldY);
+            
+            inspectCell(cellX, cellY);
+            log(`Inspecting cell (${cellX}, ${cellY})`, 'info');
+        } else {
+            // Normal click: center camera on this position
+            cameraX = worldX;
+            cameraY = worldY;
+            
+            // Clamp to world bounds
+            cameraX = Math.max(0, Math.min(worldWidth, cameraX));
+            cameraY = Math.max(0, Math.min(worldHeight, cameraY));
+            
+            updateViewportParams();
+            log(`Camera centered at (${cameraX.toFixed(1)}, ${cameraY.toFixed(1)})`, 'info');
+        }
+    }
+    
+    function handleThreeJSClick(event) {
+        // Only handle shift+click for agent inspection (no recentering)
+        if (!event.shiftKey) return;
+        
+        const canvas = document.getElementById('threejs-canvas');
+        const rect = canvas.getBoundingClientRect();
+        
+        // Convert click to normalized device coordinates (-1 to +1)
+        const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const ndcY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        // Set up raycaster (needed for agent mesh detection in both camera modes)
+        mouseNDC.set(ndcX, ndcY);
+        raycaster.setFromCamera(mouseNDC, camera);
+        
+        // Collect agent meshes for raycasting (exclude overlay elements with string keys starting with __)
+        const clickableAgentMeshes = [];
+        for (const [key, cached] of agentMeshCache) {
+            if (typeof key === 'number') {
+                clickableAgentMeshes.push(cached.mesh);
+            }
+        }
+        
+        // Check for agent mesh hits first
+        if (clickableAgentMeshes.length > 0) {
+            const agentIntersects = raycaster.intersectObjects(clickableAgentMeshes, false);
+            if (agentIntersects.length > 0) {
+                const hitMesh = agentIntersects[0].object;
+                const agentId = hitMesh.userData.agentId;
+                if (agentId !== undefined) {
+                    trackAgent(agentId);
+                    log(`Tracking agent ${agentId}`, 'info');
+                }
+            }
+        }
+        
+        // Now determine which cell was clicked (for inspect popup)
+        let cellX, cellY;
+        
+        if (ORTHOGRAPHIC) {
+            // Original orthographic calculation (direct projection)
+            const container = document.getElementById('canvas-container');
+            aspect = container.clientWidth / container.clientHeight;
+            const halfHeight = cameraZoom / 2;
+            const halfWidth = halfHeight * aspect;
+            
+            const worldX = cameraX + ndcX * halfWidth;
+            const worldY = cameraY - ndcY * halfHeight;
+            
+            cellX = Math.floor(worldX);
+            cellY = Math.floor(worldY);
+        } else {
+            // Perspective camera - use raycasting
+            // Raycast against the cell mesh (ground plane)
+            const intersects = raycaster.intersectObject(cellInstancedMesh);
+            
+            if (intersects.length > 0) {
+                // Use the intersection point to determine cell
+                const point = intersects[0].point;
+                cellX = Math.floor(point.x);
+                cellY = Math.floor(point.z);  // Z because plane is in XZ
+            } else {
+                // No intersection with cells - calculate where ray hits Y=0 plane
+                const ray = raycaster.ray;
+                if (ray.direction.y !== 0) {
+                    const t = -ray.origin.y / ray.direction.y;
+                    if (t > 0) {
+                        const groundPoint = ray.origin.clone().add(ray.direction.clone().multiplyScalar(t));
+                        cellX = Math.floor(groundPoint.x);
+                        cellY = Math.floor(groundPoint.z);
+                    } else {
+                        return; // Ray pointing away from ground
+                    }
+                } else {
+                    return; // Ray parallel to ground
+                }
+            }
+        }
+        
+        inspectCell(cellX, cellY);
+        log(`Inspecting cell (${cellX}, ${cellY})`, 'info');
+    }
+    
+    function handleGraphClick(event) {
+        // Toggle graphMode
+        graphMode = (graphMode + 1) % 5;
+        
+        // Immediately re-render the graph
+        renderPopulationGraph();
+    }
+    
+    function findAgentAt(x, y) {
+        for (const agent of agentStore.values()) {
+            if (Math.floor(agent.x) === x && Math.floor(agent.y) === y) {
+                return agent;
+            }
+        }
+        return null;
+    }
+
+    // ============================================================
+    // Color helpers
+    // ============================================================    
+
+        // Convert RGB [0,1] to hex value
+        function rgbToHexInt(r, g, b) {
+          return (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+        }
+
+        // Convert RGB [0,1] to hex color string
+        function rgbToHexString(r, g, b) {
+            const toHex = (x) => {
+                const hex = Math.round(x * 255).toString(16).padStart(2, '0');
+                return hex;
+            };
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        // Linear RGB to sRGB (gamma encoding)
+        function linearToSrgb(x) {
+            if (x <= 0.0031308) {
+                return 12.92 * x;
+            }
+            return 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+        }
+
+        // sRGB to Linear RGB (gamma decoding)
+        function srgbToLinear(x) {
+            if (x <= 0.04045) {
+                return x / 12.92;
+            }
+            return Math.pow((x + 0.055) / 1.055, 2.4);
+        }
+
+        // Oklab to Linear RGB
+        function oklabToLinearRgb(L, a, b) {
+            const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+            const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+            const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+
+            const l = l_ * l_ * l_;
+            const m = m_ * m_ * m_;
+            const s = s_ * s_ * s_;
+
+            const R = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+            const G = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+            const B = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+            return { R, G, B };
+        }
+
+        // Clamp value to [0, 1] and report if clipping occurred
+        function clampWithWarning(val) {
+            const clipped = val < 0 || val > 1;
+            return { value: Math.max(0, Math.min(1, val)), clipped };
+        }
+
+
+
+        // ============================================
+        // 5D to 3D Projection
+        // ============================================
+
+        // Angles for the 5 basis vectors (evenly spaced)
+        const angles = [0, 1, 2, 3, 4].map(i => (TWOPI * i) / 5);
+
+        // Precompute cos and sin
+        const cosTheta = angles.map(Math.cos);
+        const sinTheta = angles.map(Math.sin);
+
+        // Linear projection directly to RGB
+        // Basis vectors arranged around (1,1,1) axis
+        function linearProjectionToRgb(p) {
+            // Orthonormal basis for plane perpendicular to (1,1,1):
+            // w1 = (1, -1, 0) / sqrt(2)
+            // w2 = (1, 1, -2) / sqrt(6)
+            
+            // Scale factor for deviation from neutral axis
+            const scale = Math.sqrt(2/5);
+            
+            let R = 0, G = 0, B = 0;
+            
+            for (let i = 0; i < 5; i++) {
+                const w1_contrib = scale * cosTheta[i];
+                const w2_contrib = scale * sinTheta[i];
+                
+                // v_i = (1/5)(1,1,1) + w1_contrib * w1 + w2_contrib * w2
+                // w1 = (1/√2, -1/√2, 0)
+                // w2 = (1/√6, 1/√6, -2/√6)
+                
+                const sqrt2 = Math.sqrt(2);
+                const sqrt6 = Math.sqrt(6);
+                
+                const vR = 1/5 + w1_contrib / sqrt2 + w2_contrib / sqrt6;
+                const vG = 1/5 - w1_contrib / sqrt2 + w2_contrib / sqrt6;
+                const vB = 1/5 - 2 * w2_contrib / sqrt6;
+                
+                R += p[i] * vR;
+                G += p[i] * vG;
+                B += p[i] * vB;
+            }
+            
+            return { R, G, B };
+        }
+
+        // Projection to Oklab space
+        function projectToOklab(p, saturation) {
+            let L = 0, a = 0, b = 0;
+            
+            for (let i = 0; i < 5; i++) {
+                L += p[i] / 5;
+                a += saturation * p[i] * cosTheta[i];
+                b += saturation * p[i] * sinTheta[i];
+            }
+            
+            return { L, a, b };
+        }
+
+	//agent color by  age/sex
+	function agentAgeColor(born, sex){
+	    const age = getAge(born);
+	    const sen = sex? 40:50;
+            //return sex? COLOR_F_BRIGHT : COLOR_M_BRIGHT;
+	    let r = sex? 1.0 : 0.53;
+	    let g = sex? 0.67 : 0.53
+	    let b = sex? 0.67 : 1.0;
+	    if (age < 14){
+	        const c1=(14-age)/14;
+	        r += (1-r)*c1;
+	        g += (1-g)*c1;
+	        b += (1-b)*c1;
+	    }
+	    else if (age > sen){
+	        const c2 = Math.min(1,(age-sen)/(80-sen));
+	        r += (0.5-r)*c2;
+	        g += (0.5-g)*c2;
+	        b += (0.5-b)*c2;
+	    }
+	    return rgbToHexInt(r,g,b);
+
+    // COLOR_M_BRIGHT = 0x8888ff;
+    // COLOR_F_BRIGHT = 0xffaaaa;
+
+        }
+        
+	//agent color by  energy+happiness state
+	function agentStateColor(healthy,happy){
+	    healthy = 1+2.8*Math.sqrt(healthy);
+	    let b = (0.5-Math.abs(happy/2-0.5));
+	    let r = (1-happy)/(b+1)*healthy/10;
+	    let g = happy/(b+1)*healthy/10;
+	    b *= healthy/10/(b+1); 
+	    
+	    return rgbToHexInt(r,g,b);
+	}
+	//agent color by race/culture
+	function raceColor(g1,g2,g3){
+	    let r = 0.1+g1*0.08;
+	    let g = 0.1+g2*0.08;
+	    let b = 0.1+g3*0.08;	    
+	    return rgbToHexInt(r,g,b);
+	}
+
+        // ============================================
+        // project 5d vector to color space
+        // ============================================
+
+        function projectColor(p1,p2,p3,p4,p5) {
+	    const p = [p1,p2,p3,p4,p5];
+            const saturation = 0.3;
+
+            // ---- Step 1: Linear projection to RGB ----
+            const linearRgb = linearProjectionToRgb(p);
+            
+            const linR = clampWithWarning(linearRgb.R);
+            const linG = clampWithWarning(linearRgb.G);
+            const linB = clampWithWarning(linearRgb.B);
+            const linearClipped = linR.clipped || linG.clipped || linB.clipped;
+
+            // Apply gamma for display
+            const linearDisplayR = linearToSrgb(linR.value);
+            const linearDisplayG = linearToSrgb(linG.value);
+            const linearDisplayB = linearToSrgb(linB.value);
+
+           //return rgbToHexInt(linearDisplayR, linearDisplayG, linearDisplayB);
+
+            // ---- Step 2: Oklab projection ----
+            const oklab = projectToOklab(p, saturation);
+            
+            // Convert Oklab to Linear RGB
+            const oklabLinearRgb = oklabToLinearRgb(oklab.L, oklab.a, oklab.b);
+            
+            const okR = clampWithWarning(oklabLinearRgb.R);
+            const okG = clampWithWarning(oklabLinearRgb.G);
+            const okB = clampWithWarning(oklabLinearRgb.B);
+            const oklabClipped = okR.clipped || okG.clipped || okB.clipped;
+
+            // Apply gamma encoding for sRGB
+            const srgbR = linearToSrgb(okR.value);
+            const srgbG = linearToSrgb(okG.value);
+            const srgbB = linearToSrgb(okB.value);
+
+            return rgbToHexInt(srgbR, srgbG, srgbB);
+            
+        }
+
+    // Syllabification and other cosmetics
+    
+        function emojiId(trust, happiness){
+             // values in [0,100] !
+            //baseline (linear)
+            return Math.min(4,Math.floor(trust/20))+5*Math.min(4,Math.floor(happiness/20));
+
+	    //spread values (more expressive visualization)
+            const h= (happiness - 50)*1.75 + 50;
+            const t= (trust - 50)*1.75 + 50;
+            return Math.min(4,Math.floor(t/20))+5*Math.min(4,Math.floor(h/20));
+	}
+	
+	function generateSyllables() {
+	  
+	  const C = "ptkbdgfrlsšhmn";
+	  const V = "aeiou";
+	  const syllables = [];
+	  if(SYLLABIC){
+	    // CV
+	    for (let c of C) {
+	      for (let v of V) {
+	        syllables.push(c + v);
+	      }
+	    }
+	    // VC
+	    for (let v of V) {
+	      for (let c of C) {
+	        syllables.push(v + c);
+	      }
+	    }
+	    // CVC
+	    for (let c of C) {
+	      for (let v of V) {
+	        for (let c2 of C) {
+	          syllables.push(c + v + c2);
+	        }
+	      }
+	    }
+	  }
+	  return syllables;
+	}
+
+	function padToBase(n, base) {
+	  // Returns array of digits least-significant first
+	  const digits = [];
+	  if (n === 0) return [0];
+	  while (n > 0) {
+	    digits.push(n % base);
+	    n = Math.floor(n / base);
+	  }
+	  return digits;
+	}
+
+	function toSyllabic(n) {
+	  if (n <= 0) return "error";
+	  
+	  const digits = [];
+	  if (n === 0) {digits.push(0);} 
+	  else {
+	    while (n > 0) {
+	      digits.push(n % SYL_BASE);
+	      n = Math.floor(n / SYL_BASE);
+	    }
+	  }
+	  const parts = [];
+	  for (let i = 0; i < digits.length; i++) {
+	    const d = digits[i];
+	    const idx = d  % SYL_BASE;
+	    parts.push(SYLLABLES[idx]);
+	  }
+	  return parts.reverse().join("");
+	}
+	function syllabicArr(arr) {
+	const s=[];
+	for (let i = 0; i < arr.length; i++) {
+	  s.push(toSyllabic(arr[i]));
+	}
+	return s;
+	}
+
+    // ============================================================
+    // Event Handlers
+    // ============================================================
+    
+    window.addEventListener('load', () => {
+        initThreeJS();
+        setupMinimap();
+        setupPopulationGraph();
+        
+        // Initialize camera position
+        cameraX = worldWidth / 2;
+        cameraY = worldHeight / 2;
+        cameraZoom = MAX_ZOOM;  // Start zoomed out to show full map
+        updateViewportParams();
+        
+        // Start population graph updates
+        startGraphUpdates();
+        
+        // Simulation controls
+        document.getElementById('btn-init').addEventListener('click', initWorld);
+        document.getElementById('btn-start').addEventListener('click', startSimulation);
+        document.getElementById('btn-stop').addEventListener('click', stopSimulation);
+        document.getElementById('btn-step').addEventListener('click', () => stepSimulation(1));
+        document.getElementById('btn-step10').addEventListener('click', () => stepSimulation(10));
+        
+        // WebSocket controls
+        document.getElementById('btn-connect').addEventListener('click', wsConnect);
+        document.getElementById('btn-disconnect').addEventListener('click', wsDisconnect);
+        
+        // Poll rate slider
+        document.getElementById('poll-rate').addEventListener('input', (e) => {
+            document.getElementById('poll-rate-value').textContent = e.target.value;
+        });
+        
+        // Rate controls
+        document.getElementById('rate-interval').addEventListener('input', (e) => {
+            document.getElementById('rate-interval-value').textContent = e.target.value;
+            updateTheoreticalRate();
+        });
+        document.getElementById('rate-chunk').addEventListener('input', (e) => {
+            document.getElementById('rate-chunk-value').textContent = e.target.value;
+            updateTheoreticalRate();
+        });
+        document.getElementById('btn-rate-apply').addEventListener('click', applyRate);
+        
+        function updateTheoreticalRate() {
+            const interval = parseInt(document.getElementById('rate-interval').value);
+            const chunk = parseInt(document.getElementById('rate-chunk').value);
+            const rate = Math.floor(1000 / interval * chunk);
+            document.getElementById('stat-theoretical-rate').textContent = rate.toLocaleString();
+        }
+        
+        function applyRate() {
+            const interval = parseInt(document.getElementById('rate-interval').value);
+            const chunk = parseInt(document.getElementById('rate-chunk').value);
+            wsSend({ type: 'set_rate', interval_ms: interval, chunk_size: chunk });
+            log(`Rate set: ${chunk} agents every ${interval}ms = ${Math.floor(1000/interval*chunk)}/sec`, 'info');
+        }
+        
+        // Parameter editor
+        document.getElementById('param-select').addEventListener('change', onParamSelect);
+        document.getElementById('btn-param-set').addEventListener('click', setParameter);
+        document.getElementById('btn-param-refresh').addEventListener('click', fetchAndPopulateParams);
+        
+        // Keyboard input
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keyup', handleKeyUp);
+        
+        // Mouse input for Three.js canvas
+        document.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        document.addEventListener('wheel', handleWheel, { passive: false });
+        
+        // Click handlers
+        document.getElementById('minimap-canvas').addEventListener('click', handleMinimapClick);
+        document.getElementById('threejs-canvas').addEventListener('click', handleThreeJSClick);
+        document.getElementById('population-graph').addEventListener('click', handleGraphClick);
+        
+        // Window resize
+        window.addEventListener('resize', onWindowResize);
+        
+        // Start render loop
+        requestAnimationFrame(renderLoop);
+        
+        log('Ready. WASD/drag to pan, wheel/+- to zoom, click minimap to jump, shift+click to inspect.', 'info');
+    });
+    </script>
+</body>
+</html>

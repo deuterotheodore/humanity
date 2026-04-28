@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5D → 3D Color Projection</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --text-primary: #e8e8ed;
+            --text-secondary: #8888a0;
+            --accent-1: #ff6b6b;
+            --accent-2: #4ecdc4;
+            --accent-3: #ffe66d;
+            --accent-4: #95e1d3;
+            --accent-5: #c9b1ff;
+            --border: #2a2a3a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+            background-image: 
+                radial-gradient(ellipse at 20% 20%, rgba(78, 205, 196, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(201, 177, 255, 0.03) 0%, transparent 50%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent-2), var(--accent-5));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .slider-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .slider-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .slider-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .slider-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            min-width: 4ch;
+            text-align: right;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--text-primary);
+            cursor: pointer;
+            transition: transform 0.15s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--text-primary);
+            cursor: pointer;
+            border: none;
+        }
+
+        .saturation-slider input[type="range"]::-webkit-slider-thumb {
+            background: linear-gradient(135deg, var(--accent-2), var(--accent-5));
+        }
+
+        .color-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .color-box-wrapper {
+            text-align: center;
+        }
+
+        .color-box-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .color-box {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            transition: background-color 0.1s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .color-box::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 10px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        .color-hex {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            margin-top: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .values-section {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .values-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .values-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+
+        .value-item {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .value-label {
+            color: var(--text-secondary);
+        }
+
+        .value-number {
+            color: var(--text-primary);
+        }
+
+        .gamut-warning {
+            font-size: 0.75rem;
+            color: var(--accent-1);
+            margin-top: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .gamut-warning.visible {
+            opacity: 1;
+        }
+
+        .formula-section {
+            margin-top: 2rem;
+        }
+
+        .formula-box {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            overflow-x: auto;
+        }
+
+        .formula-box .highlight {
+            color: var(--accent-2);
+        }
+
+        .info-text {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-top: 1rem;
+        }
+
+        .arrow-icon {
+            display: inline-block;
+            margin: 0 0.5rem;
+            color: var(--accent-2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>5D → 3D Color Projection</h1>
+            <p class="subtitle">Linear projection with perceptual uniformity via Oklab</p>
+        </header>
+
+        <div class="main-grid">
+            <div class="panel">
+                <div class="panel-title">Input Parameters</div>
+                
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span class="slider-label">
+                            <span class="slider-dot" style="background: var(--accent-1)"></span>
+                            p₁
+                        </span>
+                        <span class="slider-value" id="p1-value">0.50</span>
+                    </div>
+                    <input type="range" id="p1" min="0" max="1" step="0.01" value="0.5">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span class="slider-label">
+                            <span class="slider-dot" style="background: var(--accent-2)"></span>
+                            p₂
+                        </span>
+                        <span class="slider-value" id="p2-value">0.50</span>
+                    </div>
+                    <input type="range" id="p2" min="0" max="1" step="0.01" value="0.5">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span class="slider-label">
+                            <span class="slider-dot" style="background: var(--accent-3)"></span>
+                            p₃
+                        </span>
+                        <span class="slider-value" id="p3-value">0.50</span>
+                    </div>
+                    <input type="range" id="p3" min="0" max="1" step="0.01" value="0.5">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span class="slider-label">
+                            <span class="slider-dot" style="background: var(--accent-4)"></span>
+                            p₄
+                        </span>
+                        <span class="slider-value" id="p4-value">0.50</span>
+                    </div>
+                    <input type="range" id="p4" min="0" max="1" step="0.01" value="0.5">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span class="slider-label">
+                            <span class="slider-dot" style="background: var(--accent-5)"></span>
+                            p₅
+                        </span>
+                        <span class="slider-value" id="p5-value">0.50</span>
+                    </div>
+                    <input type="range" id="p5" min="0" max="1" step="0.01" value="0.5">
+                </div>
+
+                <div class="slider-group saturation-slider" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                    <div class="slider-header">
+                        <span class="slider-label">
+                            Saturation (r)
+                        </span>
+                        <span class="slider-value" id="sat-value">0.20</span>
+                    </div>
+                    <input type="range" id="saturation" min="0.00" max="0.40" step="0.01" value="0.3">
+                </div>
+
+                <p class="info-text">
+                    The saturation parameter controls how far the basis vectors extend from the neutral axis. 
+                    Higher values produce more vivid colors but risk exceeding the RGB gamut.
+                </p>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Output Colors</div>
+                
+                <div class="color-display">
+                    <div class="color-box-wrapper">
+                        <div class="color-box-label">Step 1: Linear RGB</div>
+                        <div class="color-box" id="linear-color"></div>
+                        <div class="color-hex" id="linear-hex">#808080</div>
+                    </div>
+                    <div class="color-box-wrapper">
+                        <div class="color-box-label">Step 2: Oklab → sRGB</div>
+                        <div class="color-box" id="oklab-color"></div>
+                        <div class="color-hex" id="oklab-hex">#808080</div>
+                    </div>
+                </div>
+
+                <div class="values-section">
+                    <div class="values-title">Linear RGB (Direct Projection)</div>
+                    <div class="values-grid">
+                        <div class="value-item"><span class="value-label">R:</span> <span class="value-number" id="lin-r">0.500</span></div>
+                        <div class="value-item"><span class="value-label">G:</span> <span class="value-number" id="lin-g">0.500</span></div>
+                        <div class="value-item"><span class="value-label">B:</span> <span class="value-number" id="lin-b">0.500</span></div>
+                    </div>
+                    <div class="gamut-warning" id="linear-warning">⚠ Values clipped to [0,1] gamut</div>
+                </div>
+
+                <div class="values-section">
+                    <div class="values-title">Oklab Coordinates</div>
+                    <div class="values-grid">
+                        <div class="value-item"><span class="value-label">L:</span> <span class="value-number" id="ok-L">0.500</span></div>
+                        <div class="value-item"><span class="value-label">a:</span> <span class="value-number" id="ok-a">0.000</span></div>
+                        <div class="value-item"><span class="value-label">b:</span> <span class="value-number" id="ok-b">0.000</span></div>
+                    </div>
+                </div>
+
+                <div class="values-section">
+                    <div class="values-title">Final sRGB (Gamma Encoded)</div>
+                    <div class="values-grid">
+                        <div class="value-item"><span class="value-label">R:</span> <span class="value-number" id="srgb-r">0.500</span></div>
+                        <div class="value-item"><span class="value-label">G:</span> <span class="value-number" id="srgb-g">0.500</span></div>
+                        <div class="value-item"><span class="value-label">B:</span> <span class="value-number" id="srgb-b">0.500</span></div>
+                    </div>
+                    <div class="gamut-warning" id="oklab-warning">⚠ Values clipped to [0,1] gamut</div>
+                </div>
+
+                <div class="formula-section">
+                    <div class="values-title">Projection Formula</div>
+                    <div class="formula-box">
+                        <span class="highlight">θᵢ</span> = 2πi/5 for i ∈ {0,1,2,3,4}<br><br>
+                        <span class="highlight">Linear RGB:</span><br>
+                        R = ⅕ Σ pᵢ(1 + √(2/5)·cosθᵢ + √(2/15)·sinθᵢ)<br>
+                        G = ⅕ Σ pᵢ(1 - √(2/5)·cosθᵢ + √(2/15)·sinθᵢ)<br>
+                        B = ⅕ Σ pᵢ(1 - 2√(2/15)·sinθᵢ)<br><br>
+                        <span class="highlight">Oklab:</span><br>
+                        L = ⅕ Σ pᵢ<br>
+                        a = r · Σ pᵢ·cosθᵢ<br>
+                        b = r · Σ pᵢ·sinθᵢ
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // Color Conversion Utilities
+        // ============================================
+
+        // Linear RGB to sRGB (gamma encoding)
+        function linearToSrgb(x) {
+            if (x <= 0.0031308) {
+                return 12.92 * x;
+            }
+            return 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+        }
+
+        // sRGB to Linear RGB (gamma decoding)
+        function srgbToLinear(x) {
+            if (x <= 0.04045) {
+                return x / 12.92;
+            }
+            return Math.pow((x + 0.055) / 1.055, 2.4);
+        }
+
+        // Oklab to Linear RGB
+        function oklabToLinearRgb(L, a, b) {
+            const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+            const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+            const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+
+            const l = l_ * l_ * l_;
+            const m = m_ * m_ * m_;
+            const s = s_ * s_ * s_;
+
+            const R = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+            const G = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+            const B = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+            return { R, G, B };
+        }
+
+        // Clamp value to [0, 1] and report if clipping occurred
+        function clampWithWarning(val) {
+            const clipped = val < 0 || val > 1;
+            return { value: Math.max(0, Math.min(1, val)), clipped };
+        }
+
+        // Convert RGB [0,1] to hex color string
+        function rgbToHex(r, g, b) {
+            const toHex = (x) => {
+                const hex = Math.round(x * 255).toString(16).padStart(2, '0');
+                return hex;
+            };
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        // ============================================
+        // 5D to 3D Projection
+        // ============================================
+
+        // Angles for the 5 basis vectors (evenly spaced)
+        const angles = [0, 1, 2, 3, 4].map(i => (2 * Math.PI * i) / 5);
+
+        // Precompute cos and sin
+        const cosTheta = angles.map(Math.cos);
+        const sinTheta = angles.map(Math.sin);
+
+        // Linear projection directly to RGB
+        // Basis vectors arranged around (1,1,1) axis
+        function linearProjectionToRgb(p) {
+            // Orthonormal basis for plane perpendicular to (1,1,1):
+            // w1 = (1, -1, 0) / sqrt(2)
+            // w2 = (1, 1, -2) / sqrt(6)
+            
+            // Scale factor for deviation from neutral axis
+            const scale = Math.sqrt(2/5);
+            
+            let R = 0, G = 0, B = 0;
+            
+            for (let i = 0; i < 5; i++) {
+                const w1_contrib = scale * cosTheta[i];
+                const w2_contrib = scale * sinTheta[i];
+                
+                // v_i = (1/5)(1,1,1) + w1_contrib * w1 + w2_contrib * w2
+                // w1 = (1/√2, -1/√2, 0)
+                // w2 = (1/√6, 1/√6, -2/√6)
+                
+                const sqrt2 = Math.sqrt(2);
+                const sqrt6 = Math.sqrt(6);
+                
+                const vR = 1/5 + w1_contrib / sqrt2 + w2_contrib / sqrt6;
+                const vG = 1/5 - w1_contrib / sqrt2 + w2_contrib / sqrt6;
+                const vB = 1/5 - 2 * w2_contrib / sqrt6;
+                
+                R += p[i] * vR;
+                G += p[i] * vG;
+                B += p[i] * vB;
+            }
+            
+            return { R, G, B };
+        }
+
+        // Projection to Oklab space
+        function projectToOklab(p, saturation) {
+            let L = 0, a = 0, b = 0;
+            
+            for (let i = 0; i < 5; i++) {
+                L += p[i] / 5;
+                a += saturation * p[i] * cosTheta[i];
+                b += saturation * p[i] * sinTheta[i];
+            }
+            
+            return { L, a, b };
+        }
+
+        // ============================================
+        // UI Update
+        // ============================================
+
+        function update() {
+            // Read input values
+            const p = [
+                parseFloat(document.getElementById('p1').value),
+                parseFloat(document.getElementById('p2').value),
+                parseFloat(document.getElementById('p3').value),
+                parseFloat(document.getElementById('p4').value),
+                parseFloat(document.getElementById('p5').value)
+            ];
+            const saturation = parseFloat(document.getElementById('saturation').value);
+
+            // Update slider value displays
+            document.getElementById('p1-value').textContent = p[0].toFixed(2);
+            document.getElementById('p2-value').textContent = p[1].toFixed(2);
+            document.getElementById('p3-value').textContent = p[2].toFixed(2);
+            document.getElementById('p4-value').textContent = p[3].toFixed(2);
+            document.getElementById('p5-value').textContent = p[4].toFixed(2);
+            document.getElementById('sat-value').textContent = saturation.toFixed(2);
+
+            // ---- Step 1: Linear projection to RGB ----
+            const linearRgb = linearProjectionToRgb(p);
+            
+            const linR = clampWithWarning(linearRgb.R);
+            const linG = clampWithWarning(linearRgb.G);
+            const linB = clampWithWarning(linearRgb.B);
+            const linearClipped = linR.clipped || linG.clipped || linB.clipped;
+
+            // Apply gamma for display
+            const linearDisplayR = linearToSrgb(linR.value);
+            const linearDisplayG = linearToSrgb(linG.value);
+            const linearDisplayB = linearToSrgb(linB.value);
+
+            document.getElementById('linear-color').style.backgroundColor = 
+                rgbToHex(linearDisplayR, linearDisplayG, linearDisplayB);
+            document.getElementById('linear-hex').textContent = 
+                rgbToHex(linearDisplayR, linearDisplayG, linearDisplayB).toUpperCase();
+
+            document.getElementById('lin-r').textContent = linearRgb.R.toFixed(3);
+            document.getElementById('lin-g').textContent = linearRgb.G.toFixed(3);
+            document.getElementById('lin-b').textContent = linearRgb.B.toFixed(3);
+
+            document.getElementById('linear-warning').classList.toggle('visible', linearClipped);
+
+            // ---- Step 2: Oklab projection ----
+            const oklab = projectToOklab(p, saturation);
+            
+            document.getElementById('ok-L').textContent = oklab.L.toFixed(3);
+            document.getElementById('ok-a').textContent = oklab.a.toFixed(3);
+            document.getElementById('ok-b').textContent = oklab.b.toFixed(3);
+
+            // Convert Oklab to Linear RGB
+            const oklabLinearRgb = oklabToLinearRgb(oklab.L, oklab.a, oklab.b);
+            
+            const okR = clampWithWarning(oklabLinearRgb.R);
+            const okG = clampWithWarning(oklabLinearRgb.G);
+            const okB = clampWithWarning(oklabLinearRgb.B);
+            const oklabClipped = okR.clipped || okG.clipped || okB.clipped;
+
+            // Apply gamma encoding for sRGB
+            const srgbR = linearToSrgb(okR.value);
+            const srgbG = linearToSrgb(okG.value);
+            const srgbB = linearToSrgb(okB.value);
+
+            document.getElementById('oklab-color').style.backgroundColor = 
+                rgbToHex(srgbR, srgbG, srgbB);
+            document.getElementById('oklab-hex').textContent = 
+                rgbToHex(srgbR, srgbG, srgbB).toUpperCase();
+
+            document.getElementById('srgb-r').textContent = srgbR.toFixed(3);
+            document.getElementById('srgb-g').textContent = srgbG.toFixed(3);
+            document.getElementById('srgb-b').textContent = srgbB.toFixed(3);
+
+            document.getElementById('oklab-warning').classList.toggle('visible', oklabClipped);
+        }
+
+        // ============================================
+        // Event Listeners
+        // ============================================
+
+        ['p1', 'p2', 'p3', 'p4', 'p5', 'saturation'].forEach(id => {
+            document.getElementById(id).addEventListener('input', update);
+        });
+
+        // Initial render
+        update();
+    </script>
+</body>
+</html>
